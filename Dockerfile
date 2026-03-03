@@ -1,5 +1,5 @@
 # Utiliser l'image officielle de Playwright (inclut Python et les navigateurs)
-FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.58.0-jammy
 
 # Définir le répertoire de travail
 WORKDIR /app
@@ -18,3 +18,4 @@ EXPOSE 8000
 
 # Lancer le serveur web
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+

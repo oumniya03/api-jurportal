@@ -38,7 +38,8 @@ def scrape_jurisprudence(query: QueryModel):
             page.locator("input#texpression").fill(mot_cle)
             page.locator("button[type='submit']:has-text('Rechercher')").first.click()
             
-            page.wait_for_timeout(2000) # Réduit à 2 secondes grâce au blocage des images
+            # CORRECTION : On remet 3 secondes pour être sûr que JURPORTAL affiche les résultats
+            page.wait_for_timeout(3000) 
             
             liens_elements = page.locator("a[href*='ECLI']").element_handles()
             liens_pertinents = {}
@@ -59,7 +60,8 @@ def scrape_jurisprudence(query: QueryModel):
             
             for url in liens_a_visiter:
                 page.goto(url)
-                page.wait_for_timeout(500) # Réduit à 0.5 sec
+                # CORRECTION : On laisse 1.5 seconde à la page pour bien s'afficher
+                page.wait_for_timeout(1500) 
                 texte = page.locator("body").inner_text()[:2500]
                 resultats_texte += f"\nSOURCE URL: {url}\nRÉSUMÉ/TEXTE: {texte}...\n"
                 
@@ -89,7 +91,8 @@ def lire_arret_complet(query: UrlModel):
             page.route("**/*", bloquer_ressources_inutiles)
             
             page.goto(url)
-            page.wait_for_timeout(1000) # Réduit à 1 seconde
+            # CORRECTION : On laisse 2 secondes pour que le gros jugement charge en entier
+            page.wait_for_timeout(2000) 
             
             texte_complet = page.locator("body").inner_text()
             

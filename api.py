@@ -27,24 +27,38 @@ def scrape_jurisprudence(query: QueryModel):
             page.wait_for_timeout(3000)
             
             liens_elements = page.locator("a[href*='ECLI']").element_handles()
-            liens_uniques = set()
+            
+            # NOUVEAU : On utilise un dictionnaire pour stocker l'URL ET son année
+            liens_pertinents = {}
             
             for lien in liens_elements:
                 url = lien.get_attribute("href")
                 if url and "ECLI" in url:
                     url_propre = url.split('?')[0].split('#')[0]
+                    # On extrait l'année de l'ECLI (ex: 2022)
                     match = re.search(r"ECLI:BE:[A-Z]+:(\d{4}):", url_propre)
-                    # Filtrage strict >= 2019
-                    if match and int(match.group(1)) >= 2019:
-                        liens_uniques.add("https://juportal.be" + url_propre)
+                    
+                    if match:
+                        annee = int(match.group(1))
+                        # Filtrage strict >= 2019
+                        if annee >= 2019:
+                            url_complete = "https://juportal.be" + url_propre
+                            # On sauvegarde l'URL avec son année
+                            liens_pertinents[url_complete] = annee
 
-            # Limitation à 2 arrêts pour la rapidité
-            liens = list(liens_uniques)[:2]
+            # NOUVEAU : Le TRI HYBRIDE
+            # On trie notre dictionnaire en fonction de l'année (reverse=True pour avoir les plus récents d'abord)
+            liens_tries = sorted(liens_pertinents.items(), key=lambda item: item[1], reverse=True)
             
-            for url in liens:
+            # On prend les 3 arrêts les plus récents parmi les plus pertinents
+            # J'ai augmenté à 3 (au lieu de 2) pour donner un peu plus de choix à l'IA
+            liens_a_visiter = [item[0] for item in liens_tries][:3]
+            
+            for url in liens_a_visiter:
                 page.goto(url)
                 page.wait_for_timeout(1000)
-                texte = page.locator("body").inner_text()[:3000]
+                # On limite à 2500 caractères par arrêt pour ne pas surcharger l'IA
+                texte = page.locator("body").inner_text()[:2500]
                 resultats_texte += f"\nSOURCE URL: {url}\nRÉSUMÉ/TEXTE: {texte}...\n"
                 
             browser.close()

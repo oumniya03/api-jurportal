@@ -81,7 +81,9 @@ def lire_arret_complet(query: UrlModel):
             texte_complet = page.locator("body").inner_text()
             
             # On limite à 30 000 caractères pour ne pas faire exploser la mémoire de l'IA dans n8n
-            texte_limite = texte_complet[:30000]
+            #texte_limite = texte_complet[:30000]
+            # On prend le début (les faits) et la fin (la décision du juge)
+            texte_limite = texte_complet[:15000] + "\n\n[... PARTIE CENTRALE COUPÉE POUR ALLÉGER LA LECTURE ...]\n\n" + texte_complet[-15000:]
             
             browser.close()
             return {"status": "success", "data": texte_limite}
@@ -90,3 +92,4 @@ def lire_arret_complet(query: UrlModel):
             if 'browser' in locals():
                 browser.close()
             raise HTTPException(status_code=500, detail=str(e))
+

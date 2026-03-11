@@ -192,9 +192,10 @@ async def debug_justel(sujet: str = Query(...)):
                 }}
             """)
             
+            await page.wait_for_url("**/rech_res.pl**", timeout=15000)
             await page.wait_for_load_state("networkidle", timeout=15000)
-            await page.wait_for_timeout(3000)
-            
+            await page.wait_for_timeout(4000)
+
             # Extraire les liens vers les lois
             liens = await page.query_selector_all("a[href*='numac']")
             resultats = []
@@ -215,3 +216,4 @@ async def debug_justel(sujet: str = Query(...)):
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
+

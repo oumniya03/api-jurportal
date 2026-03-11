@@ -1,9 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
+import asyncio
 import re
+from typing import Optional
 
-app = FastAPI(title="API Jurisprudence JURPORTAL")
+app = FastAPI(title="Belgian Law Brain API - Jurisprudence & Lois")
 
 # --- MODÈLES DE DONNÉES ---
 class QueryModel(BaseModel):
@@ -12,168 +14,103 @@ class QueryModel(BaseModel):
 class UrlModel(BaseModel):
     url: str
 
-# --- FONCTION POUR BLOQUER LES IMAGES ET ACCÉLÉRER LE CHARGEMENT ---
-def bloquer_ressources_inutiles(route):
-    if route.request.resource_type in ["image", "stylesheet", "font", "media"]:
-        route.abort()
+# --- CONSTANTES JUSTEL ---
+BASE_URL_JUSTEL = "https://www.ejustice.just.fgov.be"
+LOIS_CONNUES = {
+    "loi_1978": "1978070301",
+    "code_bienetre": "1996012650",
+    "loi_1971": "1971030655",
+    "anti_discrimination": "2007002099",
+    "code_penal": "1867060801",
+    "statut_unique": "2013122601",
+}
+
+# --- UTILITAIRES ---
+async def bloquer_ressources(route):
+    if route.request.resource_type in ["image", "font", "media"]:
+        await route.abort()
     else:
-        route.continue_()
+        await route.continue_()
 
-# --- OUTIL 1 : RECHERCHE GLOBALE — RETOURNE LA LISTE DES ECLI TRIÉS PAR DATE ---
+# --- PARTIE 1 : JURISPRUDENCE (JUPORTAL) ---
+
 @app.post("/scrape")
-def scrape_jurisprudence(query: QueryModel):
+async def scrape_jurisprudence(query: QueryModel):
     mot_cle = query.mot_cle
-
-    with sync_playwright() as p:
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        await page.route("**/*", bloquer_ressources)
+        
         try:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context()
-            page = context.new_page()
+            await page.goto("https://juportal.be/moteur/formulaire", timeout=60000)
+            await page.locator("input#texpression").fill(mot_cle)
+            await page.locator("button[type='submit']:has-text('Rechercher')").first.click()
+            await page.wait_for_timeout(3000)
 
-            page.route("**/*", bloquer_ressources_inutiles)
-
-            # ÉTAPE 1 : Soumettre la recherche
-            page.goto("https://juportal.be/moteur/formulaire")
-            page.locator("input#texpression").fill(mot_cle)
-            page.locator("button[type='submit']:has-text('Rechercher')").first.click()
-            page.wait_for_timeout(3000)
-
-            # ÉTAPE 2 : Trier par date décroissante sur JuPortal
-            # JuPortal trie par "pertinence" par défaut → on force le tri par date
-            # pour obtenir les arrêts les plus RÉCENTS en premier
-            try:
-                # Chercher le select de tri (différents sélecteurs possibles selon la version JuPortal)
-                tri_select = page.locator("select#tri, select[name='tri'], select.tri")
-                if tri_select.count() > 0:
-                    # Essayer les valeurs communes pour "date décroissante"
-                    for val in ["date_desc", "DATE_DESC", "date-desc", "3", "2"]:
-                        try:
-                            tri_select.first.select_option(val)
-                            page.wait_for_timeout(2000)
-                            break
-                        except Exception:
-                            continue
-                else:
-                    # Fallback : chercher un lien cliquable "Date" dans l'en-tête du tableau
-                    date_link = page.locator("a:has-text('Date'), th a:has-text('Date')")
-                    if date_link.count() > 0:
-                        date_link.first.click()
-                        page.wait_for_timeout(2000)
-                        # Cliquer une 2e fois pour ordre décroissant si nécessaire
-                        date_link2 = page.locator("a:has-text('Date'), th a:has-text('Date')")
-                        if date_link2.count() > 0:
-                            date_link2.first.click()
-                            page.wait_for_timeout(2000)
-            except Exception:
-                # Si le tri échoue, on continue avec les résultats disponibles
-                # Notre tri Python par année reste un filet de sécurité
-                pass
-
-            # ÉTAPE 3 : Extraire tous les liens ECLI de la page
-            liens_elements = page.locator("a[href*='ECLI']").element_handles()
-            liens_pertinents = {}
-
+            liens_elements = await page.locator("a[href*='ECLI']").all()
+            resultats = []
+            
             for lien in liens_elements:
-                url = lien.get_attribute("href")
+                url = await lien.get_attribute("href")
                 if url and "ECLI" in url:
                     url_propre = url.split('?')[0].split('#')[0]
                     match_ecli = re.search(r"(ECLI:BE:[A-Z]+:\d{4}:[A-Z0-9.]+)", url_propre)
                     match_annee = re.search(r"ECLI:BE:[A-Z]+:(\d{4}):", url_propre)
                     if match_ecli and match_annee:
-                        ecli = match_ecli.group(1)
-                        annee = int(match_annee.group(1))
-                        url_complete = "https://juportal.be" + url_propre
-                        # Filtre strict : uniquement jurisprudence post-2019
-                        # (garantie de pertinence juridique - la loi a pu changer avant)
+                        ecli, annee = match_ecli.group(1), int(match_annee.group(1))
                         if annee >= 2019:
-                            liens_pertinents[url_complete] = (annee, ecli)
+                            type_doc = "ARRÊT" if ":ARR." in ecli else "DÉCISION"
+                            resultats.append({"ecli": ecli, "annee": annee, "type": type_doc, "url": "https://juportal.be" + url_propre})
 
-            # ÉTAPE 4 : Tri de sécurité par année (au cas où le tri JuPortal n'a pas fonctionné)
-            liens_tries = sorted(liens_pertinents.items(), key=lambda item: item[1][0], reverse=True)
-
-            # ÉTAPE 5 : Construire la réponse structurée pour l'IA
-            # L'IA peut comparer les ECLI avec Dernier_ECLI_Connu sans visiter chaque page
-            resultats_liste = []
-            for url, (annee, ecli) in liens_tries[:20]:  # Max 20 résultats
-                # Identifier le type de document depuis l'ECLI
-                if ":ARR." in ecli:
-                    type_doc = "ARRÊT"
-                elif ":CONC." in ecli:
-                    type_doc = "CONCLUSIONS"
-                elif ":VONN." in ecli or ":JUG." in ecli:
-                    type_doc = "JUGEMENT"
-                else:
-                    type_doc = "DÉCISION"
-
-                resultats_liste.append({
-                    "ecli": ecli,
-                    "annee": annee,
-                    "type": type_doc,
-                    "url": url
-                })
-
-            browser.close()
-
-            # Format texte lisible pour l'IA — avec type de document bien visible
-            resultats_texte = f"--- RÉSULTATS POUR '{mot_cle}' (triés du plus récent au plus ancien, post-2019) ---\n\n"
-            for i, r in enumerate(resultats_liste):
-                resultats_texte += f"ARR{i+1}: [{r['type']}] ECLI={r['ecli']} | ANNÉE={r['annee']} | URL={r['url']}\n"
-
-            resultats_texte += f"\nTOTAL: {len(resultats_liste)} résultats trouvés (filtre >= 2019)."
-            resultats_texte += "\nINSTRUCTION: Sélectionner uniquement les entrées de type [ARRÊT] ou [JUGEMENT]. Ignorer [CONCLUSIONS]."
-
-            return {"status": "success", "data": resultats_texte}
-
+            resultats_tries = sorted(resultats, key=lambda x: x['annee'], reverse=True)[:10]
+            
+            texte = f"--- RÉSULTATS POUR '{mot_cle}' (post-2019) ---\n"
+            for i, r in enumerate(resultats_tries):
+                texte += f"ARR{i+1}: [{r['type']}] ECLI={r['ecli']} | ANNÉE={r['annee']} | URL={r['url']}\n"
+            
+            await browser.close()
+            return {"status": "success", "data": texte}
         except Exception as e:
-            if 'browser' in locals():
-                browser.close()
+            await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
 
+# --- PARTIE 2 : LÉGISLATION (JUSTEL) ---
 
-# --- OUTIL 2 : LECTURE PROFONDE D'UN ARRÊT ---
-@app.post("/lire_arret")
-def lire_arret_complet(query: UrlModel):
-    url = query.url
-
-    if "juportal.be" not in url:
-        raise HTTPException(status_code=400, detail="L'URL doit provenir de juportal.be")
-
-    with sync_playwright() as p:
+@app.get("/loi/sujet")
+async def recherche_par_sujet(sujet: str = Query(...), langue: str = "fr"):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
         try:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context()
-            page = context.new_page()
+            search_url = f"{BASE_URL_JUSTEL}/cgi_loi/loi.pl?language={langue}&la={langue.upper()}&rech={sujet.replace(' ', '+')}&sort=pub-desc"
+            await page.goto(search_url, wait_until="networkidle")
+            
+            first_link = await page.query_selector("table tr:nth-child(2) td a")
+            if not first_link:
+                await browser.close()
+                return {"status": "aucun_resultat", "message": "Aucune loi trouvée."}
 
-            page.route("**/*", bloquer_ressources_inutiles)
-
-            page.goto(url)
-            page.wait_for_timeout(2000)
-
-            texte_complet = page.locator("body").inner_text()
-
-            if len(texte_complet) > 10000:
-                texte_limite = (
-                    texte_complet[:5000]
-                    + "\n\n[... PARTIE CENTRALE COUPÉE POUR ALLÉGER LA LECTURE ...]\n\n"
-                    + texte_complet[-5000:]
-                )
-            else:
-                texte_limite = texte_complet
-
-            # Extraire l'ECLI depuis l'URL pour confirmation
-            match_ecli = re.search(r"(ECLI:BE:[A-Z]+:\d{4}:[A-Z0-9.]+)", url)
-            ecli_confirme = match_ecli.group(1) if match_ecli else "ECLI non détecté dans l'URL"
-
-            reponse_finale = (
-                f"ECLI DE CET ARRÊT : {ecli_confirme}\n"
-                f"URL SOURCE : {url}\n\n"
-                f"TEXTE DE L'ARRÊT:\n{texte_limite}"
-            )
-
-            browser.close()
-            return {"status": "success", "data": reponse_finale}
-
+            href = await first_link.get_attribute("href")
+            numac = re.search(r"numac[_=](\w+)", href).group(1)
+            
+            loi_url = f"{BASE_URL_JUSTEL}/eli/loi/{numac[:4]}/{numac[4:6]}/{numac[6:8]}/{numac}/justel"
+            await page.goto(loi_url)
+            texte_complet = await page.inner_text("body")
+            
+            # Extraction simplifiée des articles mentionnant le sujet
+            articles = []
+            blocs = re.split(r'(?=Art\.?\s*\d)', texte_complet)
+            for bloc in blocs[:30]:
+                if any(word.lower() in bloc.lower() for word in sujet.split()):
+                    articles.append({"article": "Extrait", "texte": bloc.strip()[:800]})
+            
+            await browser.close()
+            return {"status": "ok", "loi": numac, "url": loi_url, "articles": articles[:3]}
         except Exception as e:
-            if 'browser' in locals():
-                browser.close()
+            await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+async def health():
+    return {"status": "online", "version": "Phase 2 - Jurisprudence & Justel"}

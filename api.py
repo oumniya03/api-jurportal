@@ -180,19 +180,27 @@ async def debug_justel(sujet: str = Query(...)):
         )
         page = await context.new_page()
         try:
-            # Aller sur le formulaire de recherche Justel
-            await page.goto("https://www.ejustice.just.fgov.be/loi/loi.htm", wait_until="networkidle", timeout=30000)
-            await page.wait_for_timeout(1000)
+            await page.goto("https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr", wait_until="networkidle", timeout=30000)
             
-            # Voir ce que contient le formulaire
+            # Remplir le formulaire POST correctement
+            await page.evaluate(f"""
+                fetch('https://www.ejustice.just.fgov.be/cgi/rech_res.pl', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/x-www-form-urlencoded'}},
+                    body: 'text1={sujet.replace(' ', '+')}&choix1=et&choix2=et&trier=promulgation&fr=f&language=fr&view_numac=&sum_date='
+                }})
+            """)
+            
+            # Soumettre via le formulaire directement
+            await page.fill("input[name='text1']", sujet)
+            await page.select_option("select[name='trier']", "promulgation")
+            await page.check("input[name='fr'][value='f']")
+            await page.click("input[type='submit']")
+            await page.wait_for_timeout(3000)
+            
             texte = await page.inner_text("body")
-            html = await page.content()
-            
             await browser.close()
-            return {
-                "texte_page_formulaire": texte[:2000],
-                "html_formulaire": html[:3000]
-            }
+            return {"texte_brut": texte[:3000]}
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))

@@ -173,8 +173,10 @@ async def health():
 @app.get("/loi/debug")
 async def debug_justel(sujet: str = Query(...)):
     import httpx
+    from bs4 import BeautifulSoup
     try:
         async with httpx.AsyncClient(verify=False, follow_redirects=True) as client:
+            # Étape 1 — POST pour obtenir les résultats
             response = await client.post(
                 "https://www.ejustice.just.fgov.be/cgi/rech_res.pl",
                 data={
@@ -194,9 +196,26 @@ async def debug_justel(sujet: str = Query(...)):
                 },
                 timeout=30
             )
+            
+            # Étape 2 — Extraire l'URL list.pl depuis le HTML
+            soup = BeautifulSoup(response.text, "html.parser")
+            list_link = None
+            for a in soup.find_all("a", href=True):
+                if "list.pl" in a["href"] and "language=fr" in a["href"]:
+                    list_link = "https://www.ejustice.just.fgov.be/cgi/" + a["href"]
+                    break
+            
+            if not list_link:
+                return {"erreur": "list.pl non trouvé", "html": response.text[:1000]}
+            
+            # Étape 3 — GET sur list.pl pour voir les résultats
+            response2 = await client.get(list_link, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            }, timeout=30)
+            
             return {
-                "status_code": response.status_code,
-                "texte_brut": response.text[:3000]
+                "list_url": list_link,
+                "texte_resultats": response2.text[:3000]
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

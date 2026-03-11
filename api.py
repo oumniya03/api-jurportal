@@ -202,7 +202,7 @@ async def debug_justel(sujet: str = Query(...)):
             for lien in liens[:10]:
                 href = await lien.get_attribute("href") or ""
                 titre = (await lien.inner_text()).strip()
-                numac_match = re.search(r"numac[=_](\w+)", href)
+                numac_match = re.search(r"numac_search=(\w+)", href)
                 if numac_match and titre:
                     numac = numac_match.group(1)
                     resultats.append({
@@ -216,4 +216,5 @@ async def debug_justel(sujet: str = Query(...)):
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
+
 

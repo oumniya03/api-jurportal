@@ -94,43 +94,90 @@ def lire_arret_complet(query: UrlModel):
 async def recherche_par_sujet(sujet: str = Query(...), langue: str = Query("fr")):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            locale="fr-BE"
+        )
+        page = await context.new_page()
         try:
-            search_url = f"https://www.ejustice.just.fgov.be/cgi_loi/loi_a1.pl?language=fr&la=F&cn=&table_name=loi&caller=list&F=&nature=&numac=&pub=&pdp=&ddfrom=&ddto=&choix1=Et&choix2=En&fromtab=loi&trier=promulgation&chercher=t&sql={sujet.replace(' ', '+')}&tri=dd+AS+RANK+&imgcn.x=37&imgcn.y=9"
-            #search_url = f"{BASE_URL_JUSTEL}/cgi_loi/loi.pl?language={langue}&la={langue.upper()}&rech={sujet.replace(' ', '+')}&sort=pub-desc"
-            #search_url = f"https://www.ejustice.just.fgov.be/cgi_loi/loi_a1.pl?language=fr&la=F&cn=&table_name=loi&caller=list&F=&nature=&numac=&pub=&pdp=&ddfrom=&ddto=&choix1=Et&choix2=En&fromtab=loi&trier=promulgation&chercher=t&sql={sujet.replace(' ', '+')}&tri=dd+AS+RANK+&imgcn.x=37&imgcn.y=9"
-            await page.goto(search_url, wait_until="networkidle", timeout=30000)
-            first_link = await page.query_selector("table tr:nth-child(2) td a")
-            if not first_link:
+            await page.goto("https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr", wait_until="networkidle", timeout=30000)
+            await page.wait_for_timeout(2000)
+
+            await page.evaluate(f"""
+                const form = document.querySelector('form');
+                if (form) {{
+                    const input = document.querySelector('input[name="text1"]');
+                    if (input) input.value = '{sujet}';
+                    form.submit();
+                }}
+            """)
+
+            await page.wait_for_url("**/rech_res.pl**", timeout=15000)
+            await page.wait_for_load_state("networkidle", timeout=15000)
+            await page.wait_for_timeout(4000)
+
+            # Extraire les résultats sans doublons
+            liens = await page.query_selector_all("a[href*='numac']")
+            resultats = []
+            numacs_vus = set()
+
+            for lien in liens[:20]:
+                href = await lien.get_attribute("href") or ""
+                titre = (await lien.inner_text()).strip()
+                numac_match = re.search(r"numac_search=(\w+)", href)
+                if numac_match and titre:
+                    numac = numac_match.group(1)
+                    if numac in numacs_vus or titre == numac:
+                        continue
+                    numacs_vus.add(numac)
+                    resultats.append({
+                        "numac": numac,
+                        "titre": titre[:200],
+                        "url_loi": f"https://www.ejustice.just.fgov.be/cgi/{href}"
+                    })
+
+            if not resultats:
                 await browser.close()
                 return {"status": "aucun_resultat", "message": "Aucune loi trouvée.", "articles": []}
-            href = await first_link.get_attribute("href") or ""
-            titre_loi = (await first_link.inner_text()).strip()
-            numac_match = re.search(r"numac[_=](\w+)", href)
-            if not numac_match:
-                await browser.close()
-                return {"status": "erreur_numac", "message": "Impossible d'extraire le numac."}
-            numac = numac_match.group(1)
-            loi_url = f"{BASE_URL_JUSTEL}/eli/loi/{numac[:4]}/{numac[4:6]}/{numac[6:8]}/{numac}/justel"
-            await page.goto(loi_url, wait_until="networkidle", timeout=30000)
+
+            # Ouvrir le premier résultat et extraire les articles pertinents
+            premier = resultats[0]
+            await page.goto(premier["url_loi"], wait_until="networkidle", timeout=30000)
+            await page.wait_for_timeout(2000)
             texte_complet = await page.inner_text("body")
             texte_complet = re.sub(r'\n{3,}', '\n\n', texte_complet)
+
+            # Scorer les articles par pertinence
             mots = [m for m in sujet.lower().split() if len(m) > 3]
             articles_trouves = []
             blocs = re.split(r'(?=Art\.?\s*\d)', texte_complet)
-            for bloc in blocs[:50]:
+
+            for bloc in blocs[:80]:
                 score = sum(1 for mot in mots if mot in bloc.lower())
                 if score >= 2:
                     art_match = re.match(r'Art\.?\s*(\S+)', bloc)
                     art_num = art_match.group(1).strip() if art_match else "?"
-                    articles_trouves.append({"article": art_num, "texte": bloc.strip()[:800], "score": score})
+                    articles_trouves.append({
+                        "article": art_num,
+                        "texte": bloc.strip()[:1000],
+                        "score": score
+                    })
+
             articles_trouves.sort(key=lambda x: x["score"], reverse=True)
+
             await browser.close()
-            return {"status": "ok", "loi": titre_loi, "numac": numac, "url_source": loi_url, "articles": articles_trouves[:3]}
+            return {
+                "status": "ok",
+                "loi": premier["titre"],
+                "numac": premier["numac"],
+                "url_source": premier["url_loi"],
+                "autres_resultats": [r["titre"] for r in resultats[1:3]],
+                "articles": articles_trouves[:3]
+            }
+
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
-
 @app.get("/loi/article")
 async def lire_article(numac: str = Query(...), article: str = Query(...), langue: str = Query("fr")):
     url = f"{BASE_URL_JUSTEL}/eli/loi/{numac[:4]}/{numac[4:6]}/{numac[6:8]}/{numac}/justel"
@@ -227,4 +274,5 @@ async def debug_justel(sujet: str = Query(...)):
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
+
 

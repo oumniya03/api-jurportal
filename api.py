@@ -168,3 +168,22 @@ async def health():
         "version": "Phase 2 - Jurisprudence & Justel",
         "endpoints": ["POST /scrape", "POST /lire_arret", "GET /loi/sujet", "GET /loi/article", "GET /health"]
     }
+@app.get("/loi/debug")
+async def debug_justel(sujet: str = Query(...)):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        try:
+            search_url = f"https://www.ejustice.just.fgov.be/cgi_loi/loi.pl?language=fr&la=F&rech={sujet.replace(' ', '+')}&sort=pub-desc"
+            await page.goto(search_url, wait_until="networkidle", timeout=30000)
+            html = await page.content()
+            texte = await page.inner_text("body")
+            await browser.close()
+            return {
+                "url_testee": search_url,
+                "texte_brut": texte[:3000]
+            }
+        except Exception as e:
+            await browser.close()
+            raise HTTPException(status_code=500, detail=str(e))
+

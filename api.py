@@ -172,50 +172,45 @@ async def health():
     }
 @app.get("/loi/debug")
 async def debug_justel(sujet: str = Query(...)):
-    import httpx
-    from bs4 import BeautifulSoup
-    try:
-        async with httpx.AsyncClient(verify=False, follow_redirects=True) as client:
-            # Étape 1 — POST pour obtenir les résultats
-            response = await client.post(
-                "https://www.ejustice.just.fgov.be/cgi/rech_res.pl",
-                data={
-                    "text1": sujet,
-                    "choix1": "et",
-                    "choix2": "et",
-                    "trier": "promulgation",
-                    "fr": "f",
-                    "language": "fr",
-                    "view_numac": "",
-                    "sum_date": ""
-                },
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    "Referer": "https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr",
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-                timeout=30
-            )
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            locale="fr-BE"
+        )
+        page = await context.new_page()
+        try:
+            # Aller sur le formulaire
+            await page.goto("https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr", wait_until="networkidle", timeout=30000)
+            await page.wait_for_timeout(2000)
             
-            # Étape 2 — Extraire l'URL list.pl depuis le HTML
-            soup = BeautifulSoup(response.text, "html.parser")
-            list_link = None
-            for a in soup.find_all("a", href=True):
-                if "list.pl" in a["href"] and "language=fr" in a["href"]:
-                    list_link = "https://www.ejustice.just.fgov.be/cgi/" + a["href"]
-                    break
+            # Remplir et soumettre via JavaScript directement
+            await page.evaluate(f"""
+                const form = document.querySelector('form');
+                if (form) {{
+                    const input = document.querySelector('input[name="text1"]');
+                    if (input) input.value = '{sujet}';
+                    form.submit();
+                }}
+            """)
             
-            if not list_link:
-                return {"erreur": "list.pl non trouvé", "html": response.text[:1000]}
+            await page.wait_for_load_state("networkidle", timeout=15000)
+            await page.wait_for_timeout(3000)
             
-            # Étape 3 — GET sur list.pl pour voir les résultats
-            response2 = await client.get(list_link, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            }, timeout=30)
+            texte = await page.inner_text("body")
+            url_actuelle = page.url
             
+            await browser.close()
             return {
-                "list_url": list_link,
-                "texte_resultats": response2.text[:3000]
+                "url_finale": url_actuelle,
+                "texte_brut": texte[:3000]
             }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            await browser.close()
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+

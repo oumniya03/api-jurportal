@@ -172,35 +172,31 @@ async def health():
     }
 @app.get("/loi/debug")
 async def debug_justel(sujet: str = Query(...)):
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            locale="fr-BE"
-        )
-        page = await context.new_page()
-        try:
-            await page.goto("https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr", wait_until="networkidle", timeout=30000)
-            
-            # Remplir le formulaire POST correctement
-            await page.evaluate(f"""
-                fetch('https://www.ejustice.just.fgov.be/cgi/rech_res.pl', {{
-                    method: 'POST',
-                    headers: {{'Content-Type': 'application/x-www-form-urlencoded'}},
-                    body: 'text1={sujet.replace(' ', '+')}&choix1=et&choix2=et&trier=promulgation&fr=f&language=fr&view_numac=&sum_date='
-                }})
-            """)
-            
-            # Soumettre via le formulaire directement
-            await page.fill("input[name='text1']", sujet)
-            await page.select_option("select[name='trier']", "promulgation")
-            await page.check("input[name='fr'][value='f']")
-            await page.click("input[type='submit']")
-            await page.wait_for_timeout(3000)
-            
-            texte = await page.inner_text("body")
-            await browser.close()
-            return {"texte_brut": texte[:3000]}
-        except Exception as e:
-            await browser.close()
-            raise HTTPException(status_code=500, detail=str(e))
+    import httpx
+    try:
+        async with httpx.AsyncClient(verify=False, follow_redirects=True) as client:
+            response = await client.post(
+                "https://www.ejustice.just.fgov.be/cgi/rech_res.pl",
+                data={
+                    "text1": sujet,
+                    "choix1": "et",
+                    "choix2": "et",
+                    "trier": "promulgation",
+                    "fr": "f",
+                    "language": "fr",
+                    "view_numac": "",
+                    "sum_date": ""
+                },
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Referer": "https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                timeout=30
+            )
+            return {
+                "status_code": response.status_code,
+                "texte_brut": response.text[:3000]
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

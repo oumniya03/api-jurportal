@@ -96,7 +96,9 @@ async def recherche_par_sujet(sujet: str = Query(...), langue: str = Query("fr")
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
         try:
-            search_url = f"{BASE_URL_JUSTEL}/cgi_loi/loi.pl?language={langue}&la={langue.upper()}&rech={sujet.replace(' ', '+')}&sort=pub-desc"
+            search_url = f"https://www.ejustice.just.fgov.be/cgi_loi/loi_a1.pl?language=fr&la=F&cn=&table_name=loi&caller=list&F=&nature=&numac=&pub=&pdp=&ddfrom=&ddto=&choix1=Et&choix2=En&fromtab=loi&trier=promulgation&chercher=t&sql={sujet.replace(' ', '+')}&tri=dd+AS+RANK+&imgcn.x=37&imgcn.y=9"
+            #search_url = f"{BASE_URL_JUSTEL}/cgi_loi/loi.pl?language={langue}&la={langue.upper()}&rech={sujet.replace(' ', '+')}&sort=pub-desc"
+            #search_url = f"https://www.ejustice.just.fgov.be/cgi_loi/loi_a1.pl?language=fr&la=F&cn=&table_name=loi&caller=list&F=&nature=&numac=&pub=&pdp=&ddfrom=&ddto=&choix1=Et&choix2=En&fromtab=loi&trier=promulgation&chercher=t&sql={sujet.replace(' ', '+')}&tri=dd+AS+RANK+&imgcn.x=37&imgcn.y=9"
             await page.goto(search_url, wait_until="networkidle", timeout=30000)
             first_link = await page.query_selector("table tr:nth-child(2) td a")
             if not first_link:
@@ -186,4 +188,5 @@ async def debug_justel(sujet: str = Query(...)):
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
+
 

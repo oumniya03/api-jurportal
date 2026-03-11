@@ -114,11 +114,23 @@ async def recherche_par_sujet(sujet: str = Query(...), langue: str = Query("fr")
             await page.goto("https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr", wait_until="networkidle", timeout=30000)
             await page.wait_for_timeout(2000)
 
+            
             await page.evaluate(f"""
                 const form = document.querySelector('form');
                 if (form) {{
                     const input = document.querySelector('input[name="text1"]');
                     if (input) input.value = '{sujet}';
+        
+                    // Sélectionner type de document = Loi uniquement
+                    const typeSelect = document.querySelector('select[name="dt"]');
+                    if (typeSelect) {{
+                        for (let opt of typeSelect.options) {{
+                            if (opt.text.trim().toLowerCase() === 'loi') {{
+                                opt.selected = true;
+                                break;
+                            }}
+                        }}
+                    }}
                     form.submit();
                 }}
             """)
@@ -250,6 +262,17 @@ async def debug_justel(sujet: str = Query(...)):
                 if (form) {{
                     const input = document.querySelector('input[name="text1"]');
                     if (input) input.value = '{sujet}';
+        
+                    // Sélectionner type de document = Loi uniquement
+                    const typeSelect = document.querySelector('select[name="dt"]');
+                    if (typeSelect) {{
+                        for (let opt of typeSelect.options) {{
+                            if (opt.text.trim().toLowerCase() === 'loi') {{
+                                opt.selected = true;
+                                break;
+                            }}
+                        }}
+                    }}
                     form.submit();
                 }}
             """)
@@ -296,3 +319,4 @@ async def health():
         "version": "Phase 2 - Jurisprudence & Justel",
         "endpoints": ["POST /scrape", "POST /lire_arret", "GET /loi/sujet", "GET /loi/article", "GET /loi/debug", "GET /health"]
     }
+

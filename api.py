@@ -217,7 +217,8 @@ async def debug_justel(sujet: str = Query(...)):
                     resultats.append({
                         "numac": numac,
                         "titre": titre[:200],
-                        "url_loi": f"https://www.ejustice.just.fgov.be/eli/loi/{numac[:4]}/{numac[4:6]}/{numac[6:8]}/{numac}/justel"
+                        #"url_loi": f"https://www.ejustice.just.fgov.be/eli/loi/{numac[:4]}/{numac[4:6]}/{numac[6:8]}/{numac}/justel"
+                        "url_loi": f"https://www.ejustice.just.fgov.be/cgi/{href}"
                     })
 
             await browser.close()
@@ -226,3 +227,4 @@ async def debug_justel(sujet: str = Query(...)):
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
+

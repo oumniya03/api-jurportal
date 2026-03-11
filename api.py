@@ -169,7 +169,16 @@ async def recherche_par_sujet(sujet: str = Query(...), langue: str = Query("fr")
                 await browser.close()
                 return {"status": "aucun_resultat", "message": "Aucune loi trouvée.", "articles": []}
 
+            # Scorer chaque loi par pertinence du titre
+            mots = [m for m in sujet.lower().split() if len(m) > 3]
+            for r in resultats:
+                r["score_titre"] = sum(1 for mot in mots if mot in r["titre"].lower())
+
+            # Trier : lois générales avec score titre élevé d'abord
+            resultats.sort(key=lambda x: (not x["est_loi"], x["est_cct"], -x["score_titre"]))
+
             premier = resultats[0]
+            
             await page.goto(premier["url_loi"], wait_until="networkidle", timeout=30000)
             await page.wait_for_timeout(2000)
             texte_complet = await page.inner_text("body")
@@ -319,4 +328,5 @@ async def health():
         "version": "Phase 2 - Jurisprudence & Justel",
         "endpoints": ["POST /scrape", "POST /lire_arret", "GET /loi/sujet", "GET /loi/article", "GET /loi/debug", "GET /health"]
     }
+
 

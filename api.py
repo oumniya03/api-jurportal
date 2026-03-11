@@ -26,6 +26,11 @@ def bloquer_ressources_inutiles(route):
 
 BASE_URL_JUSTEL = "https://www.ejustice.just.fgov.be"
 
+
+# ─────────────────────────────────────────────
+# PARTIE 1 — JURISPRUDENCE (JUPORTAL)
+# ─────────────────────────────────────────────
+
 @app.post("/scrape")
 async def scrape_jurisprudence(query: QueryModel):
     mot_cle = query.mot_cle
@@ -62,6 +67,7 @@ async def scrape_jurisprudence(query: QueryModel):
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/lire_arret")
 def lire_arret_complet(query: UrlModel):
     url = query.url
@@ -90,6 +96,11 @@ def lire_arret_complet(query: UrlModel):
                 browser.close()
             raise HTTPException(status_code=500, detail=str(e))
 
+
+# ─────────────────────────────────────────────
+# PARTIE 2 — LÉGISLATION (JUSTEL)
+# ─────────────────────────────────────────────
+
 @app.get("/loi/sujet")
 async def recherche_par_sujet(sujet: str = Query(...), langue: str = Query("fr")):
     async with async_playwright() as p:
@@ -116,12 +127,11 @@ async def recherche_par_sujet(sujet: str = Query(...), langue: str = Query("fr")
             await page.wait_for_load_state("networkidle", timeout=15000)
             await page.wait_for_timeout(4000)
 
-            # Extraire les résultats sans doublons
             liens = await page.query_selector_all("a[href*='numac']")
             resultats = []
             numacs_vus = set()
 
-            for lien in liens[:20]:
+            for lien in liens[:30]:
                 href = await lien.get_attribute("href") or ""
                 titre = (await lien.inner_text()).strip()
                 numac_match = re.search(r"numac_search=(\w+)", href)
@@ -129,25 +139,30 @@ async def recherche_par_sujet(sujet: str = Query(...), langue: str = Query("fr")
                     numac = numac_match.group(1)
                     if numac in numacs_vus or titre == numac:
                         continue
+                    est_loi = any(mot in titre.lower() for mot in ["loi du", "loi relative", "loi sur", "loi portant"])
+                    est_cct = any(mot in titre.lower() for mot in ["convention collective", "sous-commission", "commission paritaire"])
                     numacs_vus.add(numac)
                     resultats.append({
                         "numac": numac,
                         "titre": titre[:200],
-                        "url_loi": f"https://www.ejustice.just.fgov.be/cgi/{href}"
+                        "url_loi": f"https://www.ejustice.just.fgov.be/cgi/{href}",
+                        "est_loi": est_loi,
+                        "est_cct": est_cct
                     })
+
+            # Trier : lois générales d'abord, CCT en dernier
+            resultats.sort(key=lambda x: (not x["est_loi"], x["est_cct"]))
 
             if not resultats:
                 await browser.close()
                 return {"status": "aucun_resultat", "message": "Aucune loi trouvée.", "articles": []}
 
-            # Ouvrir le premier résultat et extraire les articles pertinents
             premier = resultats[0]
             await page.goto(premier["url_loi"], wait_until="networkidle", timeout=30000)
             await page.wait_for_timeout(2000)
             texte_complet = await page.inner_text("body")
             texte_complet = re.sub(r'\n{3,}', '\n\n', texte_complet)
 
-            # Scorer les articles par pertinence
             mots = [m for m in sujet.lower().split() if len(m) > 3]
             articles_trouves = []
             blocs = re.split(r'(?=Art\.?\s*\d)', texte_complet)
@@ -178,6 +193,8 @@ async def recherche_par_sujet(sujet: str = Query(...), langue: str = Query("fr")
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/loi/article")
 async def lire_article(numac: str = Query(...), article: str = Query(...), langue: str = Query("fr")):
     url = f"{BASE_URL_JUSTEL}/eli/loi/{numac[:4]}/{numac[4:6]}/{numac[6:8]}/{numac}/justel"
@@ -210,13 +227,11 @@ async def lire_article(numac: str = Query(...), article: str = Query(...), langu
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/health")
-async def health():
-    return {
-        "status": "online",
-        "version": "Phase 2 - Jurisprudence & Justel",
-        "endpoints": ["POST /scrape", "POST /lire_arret", "GET /loi/sujet", "GET /loi/article", "GET /health"]
-    }
+
+# ─────────────────────────────────────────────
+# DEBUG
+# ─────────────────────────────────────────────
+
 @app.get("/loi/debug")
 async def debug_justel(sujet: str = Query(...)):
     async with async_playwright() as p:
@@ -251,20 +266,14 @@ async def debug_justel(sujet: str = Query(...)):
                 href = await lien.get_attribute("href") or ""
                 titre = (await lien.inner_text()).strip()
                 numac_match = re.search(r"numac_search=(\w+)", href)
-
                 if numac_match and titre:
                     numac = numac_match.group(1)
-
-                    if numac in numacs_vus:
+                    if numac in numacs_vus or titre == numac:
                         continue
-                    if titre == numac:
-                        continue
-
                     numacs_vus.add(numac)
                     resultats.append({
                         "numac": numac,
                         "titre": titre[:200],
-                        #"url_loi": f"https://www.ejustice.just.fgov.be/eli/loi/{numac[:4]}/{numac[4:6]}/{numac[6:8]}/{numac}/justel"
                         "url_loi": f"https://www.ejustice.just.fgov.be/cgi/{href}"
                     })
 
@@ -276,3 +285,14 @@ async def debug_justel(sujet: str = Query(...)):
             raise HTTPException(status_code=500, detail=str(e))
 
 
+# ─────────────────────────────────────────────
+# HEALTH CHECK
+# ─────────────────────────────────────────────
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "online",
+        "version": "Phase 2 - Jurisprudence & Justel",
+        "endpoints": ["POST /scrape", "POST /lire_arret", "GET /loi/sujet", "GET /loi/article", "GET /loi/debug", "GET /health"]
+    }

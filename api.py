@@ -199,22 +199,35 @@ async def debug_justel(sujet: str = Query(...)):
             # Extraire les liens vers les lois
             liens = await page.query_selector_all("a[href*='numac']")
             resultats = []
-            for lien in liens[:10]:
+            numacs_vus = set()  # Pour éviter les doublons
+
+            for lien in liens[:20]:
                 href = await lien.get_attribute("href") or ""
                 titre = (await lien.inner_text()).strip()
                 numac_match = re.search(r"numac_search=(\w+)", href)
+    
                 if numac_match and titre:
                     numac = numac_match.group(1)
+        
+        # Ignorer les doublons et les titres qui sont juste le numac
+                    if numac in numacs_vus:
+                        continue
+                    if titre == numac:
+                        continue
+            
+                    numacs_vus.add(numac)
                     resultats.append({
                         "numac": numac,
-                        "titre": titre[:100],
-                        "href": href
+                        "titre": titre[:200],  # 200 chars
+                        "url_loi": f"https://www.ejustice.just.fgov.be/eli/loi/{numac[:4]}/{numac[4:6]}/{numac[6:8]}/{numac}/justel"
                     })
+            
             
             await browser.close()
             return {"total": len(resultats), "resultats": resultats}
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
+
 
 

@@ -180,11 +180,9 @@ async def debug_justel(sujet: str = Query(...)):
         )
         page = await context.new_page()
         try:
-            # Aller sur le formulaire
             await page.goto("https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr", wait_until="networkidle", timeout=30000)
             await page.wait_for_timeout(2000)
             
-            # Remplir et soumettre via JavaScript directement
             await page.evaluate(f"""
                 const form = document.querySelector('form');
                 if (form) {{
@@ -197,20 +195,23 @@ async def debug_justel(sujet: str = Query(...)):
             await page.wait_for_load_state("networkidle", timeout=15000)
             await page.wait_for_timeout(3000)
             
-            texte = await page.inner_text("body")
-            url_actuelle = page.url
+            # Extraire les liens vers les lois
+            liens = await page.query_selector_all("a[href*='numac']")
+            resultats = []
+            for lien in liens[:10]:
+                href = await lien.get_attribute("href") or ""
+                titre = (await lien.inner_text()).strip()
+                numac_match = re.search(r"numac[=_](\w+)", href)
+                if numac_match and titre:
+                    numac = numac_match.group(1)
+                    resultats.append({
+                        "numac": numac,
+                        "titre": titre[:100],
+                        "href": href
+                    })
             
             await browser.close()
-            return {
-                "url_finale": url_actuelle,
-                "texte_brut": texte[:3000]
-            }
+            return {"total": len(resultats), "resultats": resultats}
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
-
-
-
-
-
-

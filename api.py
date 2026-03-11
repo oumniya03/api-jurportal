@@ -176,7 +176,8 @@ async def debug_justel(sujet: str = Query(...)):
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
         try:
-            search_url = f"https://www.ejustice.just.fgov.be/cgi_loi/loi.pl?language=fr&la=F&rech={sujet.replace(' ', '+')}&sort=pub-desc"
+           # search_url = f"https://www.ejustice.just.fgov.be/cgi_loi/loi.pl?language=fr&la=F&rech={sujet.replace(' ', '+')}&sort=pub-desc"
+            search_url = f"https://www.ejustice.just.fgov.be/cgi_loi/loi_a1.pl?language=fr&la=F&cn=&table_name=loi&caller=list&F=&nature=&numac=&pub=&pdp=&ddfrom=&ddto=&choix1=Et&choix2=En&fromtab=loi&trier=promulgation&chercher=t&sql={sujet.replace(' ', '+')}&tri=dd+AS+RANK+&imgcn.x=37&imgcn.y=9"
             await page.goto(search_url, wait_until="networkidle", timeout=30000)
             html = await page.content()
             texte = await page.inner_text("body")
@@ -188,5 +189,6 @@ async def debug_justel(sujet: str = Query(...)):
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
+
 
 

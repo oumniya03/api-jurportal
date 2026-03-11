@@ -182,7 +182,7 @@ async def debug_justel(sujet: str = Query(...)):
         try:
             await page.goto("https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr", wait_until="networkidle", timeout=30000)
             await page.wait_for_timeout(2000)
-            
+
             await page.evaluate(f"""
                 const form = document.querySelector('form');
                 if (form) {{
@@ -191,43 +191,38 @@ async def debug_justel(sujet: str = Query(...)):
                     form.submit();
                 }}
             """)
-            
+
             await page.wait_for_url("**/rech_res.pl**", timeout=15000)
             await page.wait_for_load_state("networkidle", timeout=15000)
             await page.wait_for_timeout(4000)
 
-            # Extraire les liens vers les lois
             liens = await page.query_selector_all("a[href*='numac']")
             resultats = []
-            numacs_vus = set()  # Pour éviter les doublons
+            numacs_vus = set()
 
             for lien in liens[:20]:
                 href = await lien.get_attribute("href") or ""
                 titre = (await lien.inner_text()).strip()
                 numac_match = re.search(r"numac_search=(\w+)", href)
-    
+
                 if numac_match and titre:
                     numac = numac_match.group(1)
-        
-        # Ignorer les doublons et les titres qui sont juste le numac
+
                     if numac in numacs_vus:
                         continue
                     if titre == numac:
                         continue
-            
+
                     numacs_vus.add(numac)
                     resultats.append({
                         "numac": numac,
-                        "titre": titre[:200],  # 200 chars
+                        "titre": titre[:200],
                         "url_loi": f"https://www.ejustice.just.fgov.be/eli/loi/{numac[:4]}/{numac[4:6]}/{numac[6:8]}/{numac}/justel"
                     })
-            
-            
+
             await browser.close()
             return {"total": len(resultats), "resultats": resultats}
+
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
-
-
-

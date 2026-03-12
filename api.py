@@ -523,23 +523,21 @@ async def lire_article_precis(
             texte = re.sub(r'\n{3,}', '\n\n', texte)
 
             # Patterns robustes au format Justel belge
-            # Justel écrit : "Art. 38." ou "Art.38." ou "Article 38" ou "Art. 38bis."
+            # Justel écrit : "Art. 31.<L 1999-...>" ou "Art. 38.§ 1er." 
+            # Le texte entre articles est délimité par un saut de ligne + "Art. [chiffre]"
             article_escape = re.escape(article)
             patterns = [
-                # Format standard Justel : Art. 38.<espace>texte jusqu'au prochain Art.
-                rf"\bArt\.?\s*{article_escape}[\.\s][^\n](.+?)(?=\bArt\.?\s*\d|\Z)",
-                # Format avec "Article" en toutes lettres
-                rf"\bArticle\s+{article_escape}[\.\s](.+?)(?=\bArt(?:icle)?\.?\s*\d|\Z)",
-                # Format compact sans espace
-                rf"\bArt\.{article_escape}\.(.+?)(?=\bArt\.\d|\Z)",
+                # Pattern principal : greedy, s'arrête au prochain article (newline + Art. + chiffre)
+                rf"(Art\.?\s*{article_escape}[\.< \t].+?)(?=\n\s*Art\.?\s*\d|\Z)",
+                # Variante "Article" en toutes lettres
+                rf"(Article\s+{article_escape}[\. ].+?)(?=\n\s*Art\.?\s*\d|\Z)",
             ]
 
             texte_art = None
             for pat in patterns:
                 m = re.search(pat, texte, re.DOTALL | re.IGNORECASE)
                 if m:
-                    # Prendre tout le match (groupe 0) pour inclure "Art. 38."
-                    texte_art = m.group(0)[:2000].strip()
+                    texte_art = m.group(1)[:3000].strip()
                     break
 
             await browser.close()

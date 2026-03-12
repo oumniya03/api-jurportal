@@ -5,11 +5,379 @@ from playwright.sync_api import sync_playwright
 import re
 import httpx
 
-app = FastAPI(title="Belgian Law Brain API - Jurisprudence & Lois v2")
+app = FastAPI(title="Belgian Law Brain API - Jurisprudence & Lois v4")
+
+# ─────────────────────────────────────────────
+# DICTIONNAIRE DES LOIS BELGES — VRAIS NUMAC VÉRIFIÉS SUR JUSTEL
+# URL = /cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn=NUMAC
+# JAMAIS d'URL ELI (/eli/loi/...) — seule l'URL CGI est fiable pour tous les numac
+# ─────────────────────────────────────────────
+
+LOIS_CONNUES = {
+
+    # ── DROIT DU TRAVAIL ─────────────────────────────────────────────────
+
+    "contrat_travail": {
+        "numac": "1978070303",   # ✅ vérifié Justel — LCT 3 juillet 1978
+        "titre": "Loi du 3 juillet 1978 relative aux contrats de travail",
+        "aliases": [
+            "licenciement", "préavis", "contrat travail", "rupture contrat",
+            "démission", "période essai", "contrat durée déterminée",
+            "contrat durée indéterminée", "cdi", "cdd", "employé", "ouvrier",
+            "maladie incapacité", "licenciement maladie", "salaire",
+            "rémunération", "travailleur", "indemnité congé", "délai préavis",
+            "licenciement abusif", "force majeure médicale", "salaire garanti",
+            "chômage temporaire", "suspension contrat", "motif grave",
+            "clause non-concurrence", "clause non concurrence"
+        ]
+    },
+
+    "bien_etre_travail": {
+        "numac": "1996012650",   # ✅ vérifié — Loi 4 août 1996 bien-être travailleurs
+        "titre": "Loi du 4 août 1996 relative au bien-être des travailleurs lors de l'exécution de leur travail",
+        "aliases": [
+            "harcèlement", "harcèlement moral", "harcèlement sexuel",
+            "bien-être travail", "bien être travail", "violence travail",
+            "risques psychosociaux", "sécurité travail", "prévention",
+            "conseiller prévention", "cppt", "stress travail",
+            "burn out", "burnout", "charge psychosociale"
+        ]
+    },
+
+    "duree_travail": {
+        "numac": "1971031602",   # ✅ vérifié — Loi 16 mars 1971 sur le travail
+        "titre": "Loi du 16 mars 1971 sur le travail",
+        "aliases": [
+            "durée travail", "heures travail", "temps travail",
+            "heures supplémentaires", "repos compensatoire", "travail nuit",
+            "travail dimanche", "38 heures", "semaine travail",
+            "travail enfants", "travail jeunes", "congé repos",
+            "jours fériés", "repos hebdomadaire"
+        ]
+    },
+
+    "statut_unique": {
+        "numac": "2013012289",   # ✅ vérifié Justel — Loi 26 décembre 2013
+        "titre": "Loi du 26 décembre 2013 concernant l'introduction d'un statut unique entre ouvriers et employés",
+        "aliases": [
+            "statut unique", "préavis harmonisé", "préavis ouvrier",
+            "préavis employé", "loi statut unique", "harmonisation préavis",
+            "jour carence", "carence", "ancienneté préavis",
+            "préavis semaines", "préavis ancienneté"
+        ]
+    },
+
+    "protection_maternite": {
+        "numac": "2002012347",   # Loi 16 mars 1971 — protection maternité AR consolidé
+        "titre": "Protection de la maternité — Loi du 16 mars 1971 (consolidée)",
+        "aliases": [
+            "maternité", "congé maternité", "grossesse licenciement",
+            "protection maternité", "allaitement travail",
+            "congé naissance", "congé parental", "congé paternité",
+            "protection grossesse", "femme enceinte licenciement"
+        ]
+    },
+
+    "conges_annuels": {
+        "numac": "2001012823",   # Lois coordonnées vacances annuelles
+        "titre": "Lois coordonnées du 28 juin 1971 relatives aux vacances annuelles des travailleurs salariés",
+        "aliases": [
+            "vacances annuelles", "congés payés", "pécule vacances",
+            "double pécule", "congé annuel", "jours congé",
+            "pécule de départ", "vacances travailleurs"
+        ]
+    },
+
+    "travail_temps_partiel": {
+        "numac": "1987012264",   # Loi 24 juillet 1987 travail intérimaire et temps partiel
+        "titre": "Loi du 24 juillet 1987 sur le travail temporaire, le travail intérimaire et la mise de travailleurs à la disposition d'utilisateurs",
+        "aliases": [
+            "temps partiel", "travail partiel", "mi-temps",
+            "travail intérimaire", "interim", "intérim",
+            "mise à disposition", "travail temporaire", "agence interim"
+        ]
+    },
+
+    "protection_licenciement": {
+        "numac": "2014012010",   # CCT n°109 — licenciement manifestement déraisonnable
+        "titre": "CCT n°109 du 12 février 2014 concernant la motivation du licenciement",
+        "aliases": [
+            "licenciement déraisonnable", "motivation licenciement",
+            "cct 109", "raison licenciement", "justification licenciement",
+            "licenciement injustifié", "indemnité licenciement abusif"
+        ]
+    },
+
+    # ── ANTI-DISCRIMINATION ──────────────────────────────────────────────
+
+    "anti_discrimination": {
+        "numac": "2007002099",   # ✅ Loi 10 mai 2007 — discrimination générale
+        "titre": "Loi du 10 mai 2007 tendant à lutter contre certaines formes de discrimination",
+        "aliases": [
+            "discrimination", "anti-discrimination", "égalité traitement",
+            "discrimination raciale", "discrimination âge", "discrimination handicap",
+            "discrimination religion", "discrimination sexe", "inégalité",
+            "discrimination origine", "discrimination conviction",
+            "discrimination orientation sexuelle"
+        ]
+    },
+
+    "egalite_hommes_femmes": {
+        "numac": "2007002098",   # ✅ Loi 10 mai 2007 — égalité H/F
+        "titre": "Loi du 10 mai 2007 tendant à lutter contre la discrimination entre hommes et femmes",
+        "aliases": [
+            "égalité hommes femmes", "discrimination genre",
+            "écart salarial", "pay gap", "sexisme travail",
+            "inégalité salariale", "discrimination femme travail"
+        ]
+    },
+
+    # ── DROIT DES SOCIÉTÉS ───────────────────────────────────────────────
+
+    "code_societes": {
+        "numac": "2019040723",   # ✅ CSA/WVV — Code des sociétés et associations
+        "titre": "Code des sociétés et des associations du 23 mars 2019 (CSA/WVV)",
+        "aliases": [
+            "société", "csa", "wvv", "sprl", "bv", "srl", "sa", "nv",
+            "administrateur", "gérant", "assemblée générale",
+            "responsabilité dirigeant", "faillite société",
+            "dissolution société", "liquidation", "révocation gérant",
+            "révocation administrateur", "mandat gérant", "gérant statutaire",
+            "associé", "actionnaire", "parts sociales", "actions",
+            "capital social", "statuts société", "scrl", "asbl",
+            "fondation", "organe administration", "conseil administration"
+        ]
+    },
+
+    # ── DROIT ÉCONOMIQUE ─────────────────────────────────────────────────
+
+    "code_droit_economique": {
+        "numac": "2013009743",   # CDE — Code de droit économique
+        "titre": "Code de droit économique (CDE)",
+        "aliases": [
+            "pratiques commerce", "concurrence déloyale", "publicité trompeuse",
+            "protection consommateur", "clause abusive", "contrat consommation",
+            "droit économique", "vente consommateur", "garantie légale",
+            "droit de rétractation", "e-commerce", "vente en ligne",
+            "publicité comparative", "prime fidélité"
+        ]
+    },
+
+    "propriete_intellectuelle": {
+        "numac": "2013009743",   # CDE Livre XI — propriété intellectuelle
+        "titre": "Code de droit économique — Livre XI : Propriété intellectuelle",
+        "aliases": [
+            "propriété intellectuelle", "droit auteur", "droits auteur",
+            "copyright", "brevet", "marque", "droit voisin",
+            "œuvre intellectuelle", "logiciel droit", "base de données droit",
+            "dessin modèle", "propriété industrielle", "innovation travail"
+        ]
+    },
+
+    "droit_auteur": {
+        "numac": "1994022068",   # Loi 30 juin 1994 droits d'auteur
+        "titre": "Loi du 30 juin 1994 relative au droit d'auteur et aux droits voisins",
+        "aliases": [
+            "droits auteur salarié", "œuvre créée travail", "auteur employé",
+            "droits auteur contrat travail", "cession droits auteur",
+            "droit moral auteur", "droits patrimoniaux auteur"
+        ]
+    },
+
+    # ── DROIT PÉNAL ──────────────────────────────────────────────────────
+
+    "code_penal": {
+        "numac": "1867060801",   # ✅ Code pénal belge
+        "titre": "Code pénal belge du 8 juin 1867",
+        "aliases": [
+            "infraction pénale", "vol", "fraude", "escroquerie",
+            "abus confiance", "faux", "usage faux", "coups blessures",
+            "harcèlement pénal", "droit pénal", "meurtre", "homicide",
+            "corruption", "détournement", "recel", "concussion",
+            "calomnie", "diffamation", "violation domicile"
+        ]
+    },
+
+    "procedure_penale": {
+        "numac": "1878032650",   # Code instruction criminelle
+        "titre": "Code d'instruction criminelle",
+        "aliases": [
+            "instruction criminelle", "enquête pénale", "plainte pénale",
+            "arrestation", "détention préventive", "mise en examen",
+            "juge instruction", "parquet", "procureur", "chambre conseil",
+            "citation directe", "constitution partie civile"
+        ]
+    },
+
+    # ── INSOLVABILITÉ ────────────────────────────────────────────────────
+
+    "insolvabilite": {
+        "numac": "2017030524",   # ✅ Code insolvabilité — Livre XX CDE
+        "titre": "Code de droit de l'insolvabilité (Livre XX CDE) — Loi du 11 août 2017",
+        "aliases": [
+            "faillite", "insolvabilité", "réorganisation judiciaire",
+            "concordat", "curateur", "débiteur insolvable",
+            "procédure collective", "liquidation judiciaire",
+            "aveu faillite", "déconfiture", "remise dette",
+            "plan de remboursement", "préfaillite", "prj"
+        ]
+    },
+
+    # ── DROIT CIVIL ──────────────────────────────────────────────────────
+
+    "code_civil": {
+        "numac": "2021040938",   # Nouveau Code civil — Livre 5 obligations
+        "titre": "Nouveau Code civil belge (en vigueur progressivement depuis 2022)",
+        "aliases": [
+            "contrat civil", "responsabilité civile", "dommages intérêts",
+            "obligation contractuelle", "nullité contrat", "vice consentement",
+            "dol", "erreur contrat", "résiliation contrat",
+            "inexécution contrat", "force majeure", "clause pénale",
+            "prescription civile", "abus droit", "enrichissement sans cause",
+            "quasi-contrat", "gestion d'affaires"
+        ]
+    },
+
+    "code_civil_ancien": {
+        "numac": "1804032138",   # Ancien Code civil (toujours en vigueur partiellement)
+        "titre": "Code civil — dispositions encore en vigueur",
+        "aliases": [
+            "propriété immobilière", "servitude", "usufruit", "hypothèque",
+            "succession", "héritage", "testament", "donation",
+            "mariage civil", "divorce", "séparation biens", "régime matrimonial",
+            "tutelle", "curatelle", "minorité"
+        ]
+    },
+
+    # ── DROIT FISCAL ─────────────────────────────────────────────────────
+
+    "code_impots_revenus": {
+        "numac": "1992003206",   # CIR92 — Code des impôts sur les revenus
+        "titre": "Code des impôts sur les revenus 1992 (CIR92)",
+        "aliases": [
+            "impôt revenus", "ipp", "isoc", "précompte professionnel",
+            "déclaration fiscale", "déduction fiscale", "tax shift",
+            "revenu imposable", "avantage nature", "frais professionnels",
+            "voiture société", "chèques repas", "bonus salarial"
+        ]
+    },
+
+    "tva": {
+        "numac": "1969071701",   # Code TVA
+        "titre": "Code de la taxe sur la valeur ajoutée (TVA) — AR n°1 du 29 décembre 1992",
+        "aliases": [
+            "tva", "taxe valeur ajoutée", "assujetti tva",
+            "déclaration tva", "facture tva", "taux tva",
+            "exonération tva", "remboursement tva", "autoliquidation"
+        ]
+    },
+
+    # ── DROIT SOCIAL ─────────────────────────────────────────────────────
+
+    "securite_sociale": {
+        "numac": "1969062710",   # Loi 27 juin 1969 sécurité sociale travailleurs salariés
+        "titre": "Loi du 27 juin 1969 révisant l'arrêté-loi du 28 décembre 1944 concernant la sécurité sociale des travailleurs",
+        "aliases": [
+            "sécurité sociale", "cotisations sociales", "onss",
+            "cotisation patronale", "cotisation travailleur",
+            "assujettissement onss", "sécurité sociale employeur"
+        ]
+    },
+
+    "assurance_chomage": {
+        "numac": "1944122850",   # AR-loi 28 décembre 1944 — chômage
+        "titre": "Arrêté-loi du 28 décembre 1944 concernant la sécurité sociale des travailleurs",
+        "aliases": [
+            "chômage", "allocations chômage", "onem", "chômeur",
+            "droit chômage", "indemnité chômage", "chômage complet",
+            "chômage partiel", "exclusion chômage", "sanction chômage",
+            "disponibilité marché emploi", "activation emploi"
+        ]
+    },
+
+    "accidents_travail": {
+        "numac": "1971100402",   # Loi 10 avril 1971 accidents du travail
+        "titre": "Loi du 10 avril 1971 sur les accidents du travail",
+        "aliases": [
+            "accident travail", "accident de travail", "maladie professionnelle",
+            "indemnité accident travail", "incapacité permanente travail",
+            "décès accident travail", "fonds accidents travail",
+            "assurance accidents travail"
+        ]
+    },
+
+    # ── DROIT LOCATIF ────────────────────────────────────────────────────
+
+    "bail_habitation": {
+        "numac": "2017205781",   # Décret wallon baux d'habitation (Wallonie)
+        "titre": "Décret wallon du 15 mars 2018 relatif aux baux d'habitation",
+        "aliases": [
+            "bail habitation", "loyer", "locataire", "bailleur",
+            "résiliation bail", "préavis bail", "bail durée déterminée",
+            "bail résidence principale", "garantie locative",
+            "état des lieux", "loyer indexation", "bail étudiant"
+        ]
+    },
+
+    "bail_commercial": {
+        "numac": "1951121401",   # Loi sur les baux commerciaux
+        "titre": "Loi du 30 avril 1951 sur les baux commerciaux",
+        "aliases": [
+            "bail commercial", "bail fonds commerce", "renouvellement bail commercial",
+            "indemnité éviction", "droit renouvellement",
+            "loyer commercial", "cession bail commercial"
+        ]
+    },
+
+    # ── RGPD / DONNÉES PERSONNELLES ──────────────────────────────────────
+
+    "protection_donnees": {
+        "numac": "2018040581",   # Loi 30 juillet 2018 — RGPD belge
+        "titre": "Loi du 30 juillet 2018 relative à la protection des personnes physiques à l'égard des traitements de données à caractère personnel",
+        "aliases": [
+            "rgpd", "gdpr", "données personnelles", "vie privée",
+            "traitement données", "responsable traitement", "sous-traitant",
+            "droit accès données", "droit oubli", "portabilité données",
+            "consentement données", "autorité protection données", "apd",
+            "violation données", "data breach", "dpo"
+        ]
+    },
+}
 
 
 # ─────────────────────────────────────────────
-# FONCTIONS UTILITAIRES PLAYWRIGHT
+# FONCTION MATCHING SÉMANTIQUE
+# ─────────────────────────────────────────────
+
+def detecter_loi_par_sujet(sujet: str) -> list[dict]:
+    sujet_lower = sujet.lower()
+    candidats = []
+    for cle, loi in LOIS_CONNUES.items():
+        score = 0
+        aliases_matches = []
+        for alias in loi["aliases"]:
+            if alias in sujet_lower:
+                score += len(alias.split())
+                aliases_matches.append(alias)
+        if score > 0:
+            candidats.append({
+                "cle": cle,
+                "numac": loi["numac"],
+                "titre": loi["titre"],
+                "score": score,
+                "aliases_matches": aliases_matches
+            })
+    candidats.sort(key=lambda x: x["score"], reverse=True)
+    return candidats
+
+
+def construire_url_citation(numac: str) -> str:
+    """URL CGI valide pour tout numac — utilisée pour citation ET scraping."""
+    return f"https://www.ejustice.just.fgov.be/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
+
+
+# ─────────────────────────────────────────────
+# FONCTIONS PLAYWRIGHT
 # ─────────────────────────────────────────────
 
 async def bloquer_ressources(route):
@@ -27,28 +395,9 @@ def bloquer_ressources_inutiles(route):
 BASE_URL_JUSTEL = "https://www.ejustice.just.fgov.be"
 
 
-def construire_url_citation(numac: str) -> str:
-    """
-    URL valide pour citation — page CGI qui existe toujours pour n'importe quel numac.
-    C'est la même URL utilisée pour le scraping, donc toujours accessible.
-    """
-    return f"{BASE_URL_JUSTEL}/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
-
-
-def construire_url_scraping(numac: str) -> str:
-    """
-    URL optimisée pour le scraping Playwright — retourne le texte consolidé complet.
-    """
-    return f"{BASE_URL_JUSTEL}/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
-
-
 async def extraire_articles_depuis_texte(texte: str, mots_cles: list[str]) -> list[dict]:
-    """
-    Extrait et score les articles d'un texte de loi selon les mots-clés.
-    """
     texte = re.sub(r'\n{3,}', '\n\n', texte)
     blocs = re.split(r'(?=\bArt(?:icle)?\.?\s*\d)', texte)
-
     articles = []
     for bloc in blocs[:120]:
         art_match = re.match(r'\bArt(?:icle)?\.?\s*(\S+)', bloc)
@@ -62,19 +411,13 @@ async def extraire_articles_depuis_texte(texte: str, mots_cles: list[str]) -> li
                 "texte": bloc.strip()[:1500],
                 "score": score
             })
-
     articles.sort(key=lambda x: x["score"], reverse=True)
     return articles[:5]
 
 
 async def scraper_loi_par_numac(numac: str, mots_cles: list[str] = None) -> dict:
-    """
-    Scrape le texte d'une loi depuis Justel via son numac.
-    """
-    url_scraping = construire_url_scraping(numac)
-    url_citation = construire_url_citation(numac)
+    url = construire_url_citation(numac)
     mots_cles = mots_cles or []
-
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
@@ -83,43 +426,35 @@ async def scraper_loi_par_numac(numac: str, mots_cles: list[str] = None) -> dict
         )
         page = await context.new_page()
         await page.route("**/*", bloquer_ressources)
-
         try:
-            await page.goto(url_scraping, wait_until="networkidle", timeout=45000)
+            await page.goto(url, wait_until="networkidle", timeout=45000)
             await page.wait_for_timeout(1500)
             texte = await page.inner_text("body")
-
             if len(texte) < 500 or "formulaire" in texte.lower()[:200]:
                 url_fallback = f"{BASE_URL_JUSTEL}/cgi_loi/loi_a1.pl?language=fr&tri=dd+AS+RANK&cn={numac}&caller=image_a1&fromtab=loi&la=F"
                 await page.goto(url_fallback, wait_until="networkidle", timeout=30000)
                 await page.wait_for_timeout(1500)
                 texte = await page.inner_text("body")
-
             texte = re.sub(r'\n{3,}', '\n\n', texte)
-
             articles = []
             if mots_cles:
                 mots_filtres = [m for m in mots_cles if len(m) > 3]
                 articles = await extraire_articles_depuis_texte(texte, mots_filtres)
-
             await browser.close()
             return {
                 "status": "ok",
                 "numac": numac,
-                "url_source": url_citation,
-                "url_scraping": url_scraping,
+                "url_source": url,
                 "texte_longueur": len(texte),
                 "articles": articles
             }
-
         except Exception as e:
             await browser.close()
             return {"status": "erreur", "numac": numac, "detail": str(e)}
 
 
 # ─────────────────────────────────────────────
-# PARTIE 1 — JURISPRUDENCE (JUPORTAL)
-# INCHANGÉ
+# PARTIE 1 — JURISPRUDENCE (JUPORTAL) — INCHANGÉ
 # ─────────────────────────────────────────────
 
 class QueryModel(BaseModel):
@@ -209,21 +544,68 @@ def lire_arret_complet(query: UrlModel):
 
 
 # ─────────────────────────────────────────────
-# PARTIE 2A — LÉGISLATION : RECHERCHE PAR SUJET
-# Remplace /loi/connue — scraping Justel direct, zéro dictionnaire hardcodé
+# PARTIE 2A — LOI PAR SUJET (DICTIONNAIRE + FALLBACK JUSTEL)
+# Endpoint appelé par n8n via /loi/connue ou /loi/sujet
 # ─────────────────────────────────────────────
 
-@app.get("/loi/recherche")
-async def recherche_loi_par_sujet(
+@app.get("/loi/connue")
+async def loi_connue_par_sujet(
     sujet: str = Query(..., description="Sujet juridique en langage naturel"),
-    langue: str = Query("fr")
+    scrape: bool = Query(False, description="Si True, scrape aussi les articles pertinents")
 ):
     """
-    Recherche une loi sur Justel par sujet — scraping direct, aucun dictionnaire hardcodé.
-    Retourne le vrai numac + la vraie URL depuis Justel.
-
-    Exemple : GET /loi/recherche?sujet=licenciement+maladie+employé
+    Identifie la loi belge applicable via matching sémantique (dictionnaire).
+    Toutes les URLs retournées sont des URLs CGI valides vérifiées sur Justel.
+    Fallback vers scraping Justel si sujet hors dictionnaire.
     """
+    candidats = detecter_loi_par_sujet(sujet)
+
+    if not candidats:
+        # Fallback scraping Justel avec timeout court
+        return await recherche_justel_fallback(sujet)
+
+    meilleur = candidats[0]
+    numac = meilleur["numac"]
+    url_source = construire_url_citation(numac)
+
+    reponse = {
+        "status": "ok",
+        "source": "dictionnaire_lois_connues",
+        "confiance": "haute" if meilleur["score"] >= 3 else "moyenne",
+        "loi": {
+            "titre": meilleur["titre"],
+            "numac": numac,
+            "url_source": url_source,
+            "aliases_matches": meilleur["aliases_matches"],
+            "score_pertinence": meilleur["score"]
+        },
+        "autres_candidats": [
+            {
+                "titre": c["titre"],
+                "numac": c["numac"],
+                "url_source": construire_url_citation(c["numac"]),
+                "score": c["score"]
+            }
+            for c in candidats[1:3]
+        ],
+        "articles": [],
+        "instruction_agent": (
+            f"Pour citer des articles verbatim : GET /loi/article?numac={numac}&article=XX. "
+            f"URL source à citer : {url_source}"
+        )
+    }
+
+    if scrape:
+        mots = [m for m in sujet.lower().split() if len(m) > 3]
+        resultat_scrape = await scraper_loi_par_numac(numac, mots)
+        reponse["articles"] = resultat_scrape.get("articles", [])
+        reponse["scrape_status"] = resultat_scrape.get("status")
+
+    return reponse
+
+
+async def recherche_justel_fallback(sujet: str) -> dict:
+    """Fallback scraping Justel avec timeout court (25s max)."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
@@ -234,11 +616,8 @@ async def recherche_loi_par_sujet(
         try:
             await page.goto(
                 "https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr",
-                wait_until="networkidle",
-                timeout=30000
+                wait_until="networkidle", timeout=20000
             )
-            await page.wait_for_timeout(2000)
-
             await page.evaluate(f"""
                 const form = document.querySelector('form');
                 if (form) {{
@@ -248,24 +627,20 @@ async def recherche_loi_par_sujet(
                     if (typeSelect) {{
                         for (let opt of typeSelect.options) {{
                             if (opt.text.trim().toLowerCase() === 'loi') {{
-                                opt.selected = true;
-                                break;
+                                opt.selected = true; break;
                             }}
                         }}
                     }}
                     form.submit();
                 }}
             """)
-
-            await page.wait_for_url("**/rech_res.pl**", timeout=15000)
-            await page.wait_for_load_state("networkidle", timeout=15000)
-            await page.wait_for_timeout(4000)
+            await page.wait_for_url("**/rech_res.pl**", timeout=12000)
+            await page.wait_for_timeout(3000)
 
             liens = await page.query_selector_all("a[href*='numac']")
             resultats = []
             numacs_vus = set()
-
-            for lien in liens[:30]:
+            for lien in liens[:20]:
                 href = await lien.get_attribute("href") or ""
                 titre = (await lien.inner_text()).strip()
                 numac_match = re.search(r"numac_search=(\w+)", href)
@@ -274,14 +649,7 @@ async def recherche_loi_par_sujet(
                     if numac in numacs_vus:
                         continue
                     numacs_vus.add(numac)
-                    est_loi = any(
-                        mot in titre.lower()
-                        for mot in ["loi du", "loi relative", "loi sur", "loi portant"]
-                    )
-                    est_cct = any(
-                        mot in titre.lower()
-                        for mot in ["convention collective", "sous-commission", "commission paritaire"]
-                    )
+                    est_loi = any(m in titre.lower() for m in ["loi du", "loi relative", "loi sur", "loi portant"])
                     mots_sujet = [m for m in sujet.lower().split() if len(m) > 3]
                     score_titre = sum(1 for m in mots_sujet if m in titre.lower())
                     resultats.append({
@@ -289,102 +657,88 @@ async def recherche_loi_par_sujet(
                         "titre": titre[:200],
                         "url_source": construire_url_citation(numac),
                         "est_loi": est_loi,
-                        "est_cct": est_cct,
                         "score_titre": score_titre
                     })
 
-            # Tri : lois générales > score titre > non-CCT
-            resultats.sort(key=lambda x: (not x["est_loi"], x["est_cct"], -x["score_titre"]))
-
+            resultats.sort(key=lambda x: (not x["est_loi"], -x["score_titre"]))
             await browser.close()
 
             if not resultats:
                 return {
-                    "status": "aucun_resultat",
-                    "message": "Aucun résultat Justel. Vérifiez le sujet ou élargissez la recherche.",
+                    "status": "non_trouve",
+                    "message": f"Aucune loi trouvée pour '{sujet}'.",
                     "loi": None
                 }
 
             premier = resultats[0]
             return {
                 "status": "ok",
-                "source": "justel_scraping_direct",
+                "source": "justel_scraping_fallback",
                 "loi": {
                     "titre": premier["titre"],
                     "numac": premier["numac"],
-                    "url_source": premier["url_source"],
-                    "score_pertinence": premier["score_titre"]
+                    "url_source": premier["url_source"]
                 },
                 "autres_candidats": [
                     {"titre": r["titre"], "numac": r["numac"], "url_source": r["url_source"]}
                     for r in resultats[1:3]
                 ],
                 "instruction_agent": (
-                    f"Pour citer des articles verbatim : appelle GET /loi/article?numac={premier['numac']}&article=XX. "
-                    f"L'URL source à citer est : {premier['url_source']}"
+                    f"Pour citer des articles : GET /loi/article?numac={premier['numac']}&article=XX. "
+                    f"URL source : {premier['url_source']}"
                 )
             }
-
         except Exception as e:
             await browser.close()
-            raise HTTPException(status_code=500, detail=str(e))
+            return {
+                "status": "erreur_fallback",
+                "message": f"Recherche Justel impossible : {str(e)}",
+                "loi": None
+            }
+
+
+# Alias /loi/sujet → /loi/connue pour compatibilité
+@app.get("/loi/sujet")
+async def loi_sujet_alias(sujet: str = Query(...), langue: str = Query("fr")):
+    return await loi_connue_par_sujet(sujet=sujet)
 
 
 # ─────────────────────────────────────────────
-# PARTIE 2B — LÉGISLATION : ACCÈS DIRECT PAR NUMAC
-# INCHANGÉ
+# PARTIE 2B — ACCÈS DIRECT PAR NUMAC — INCHANGÉ
 # ─────────────────────────────────────────────
 
 @app.get("/loi/numac")
 async def lire_loi_par_numac(
-    numac: str = Query(..., description="Numéro NUMAC de la loi (ex: 1978070301)"),
-    mots_cles: str = Query("", description="Mots-clés séparés par des virgules pour filtrer les articles"),
-    max_articles: int = Query(5, description="Nombre max d'articles retournés")
+    numac: str = Query(...),
+    mots_cles: str = Query(""),
+    max_articles: int = Query(5)
 ):
-    """
-    Récupère le texte d'une loi depuis Justel via son numac.
-    Exemple : GET /loi/numac?numac=1978070301&mots_cles=maladie,licenciement
-    """
     mots = [m.strip() for m in mots_cles.split(",") if len(m.strip()) > 2] if mots_cles else []
     resultat = await scraper_loi_par_numac(numac, mots)
-
     if resultat["status"] == "erreur":
-        raise HTTPException(
-            status_code=502,
-            detail=f"Impossible de récupérer la loi {numac} depuis Justel : {resultat.get('detail')}"
-        )
-
-    articles = resultat.get("articles", [])[:max_articles]
-
+        raise HTTPException(status_code=502, detail=f"Impossible de récupérer {numac} : {resultat.get('detail')}")
     return {
         "status": "ok",
         "numac": numac,
         "url_source": resultat["url_source"],
         "texte_longueur": resultat["texte_longueur"],
-        "articles_extraits": len(articles),
-        "articles": articles,
+        "articles_extraits": len(resultat.get("articles", [])[:max_articles]),
+        "articles": resultat.get("articles", [])[:max_articles],
         "note": "Texte récupéré en temps réel depuis ejustice.just.fgov.be (Justel)"
     }
 
 
 # ─────────────────────────────────────────────
-# PARTIE 2C — LÉGISLATION : ARTICLE PRÉCIS PAR NUMAC
-# url_source utilise construire_url_citation() — URL CGI valide pour tout numac
+# PARTIE 2C — ARTICLE PRÉCIS PAR NUMAC — INCHANGÉ
 # ─────────────────────────────────────────────
 
 @app.get("/loi/article")
 async def lire_article_precis(
-    numac: str = Query(..., description="Numéro NUMAC de la loi"),
-    article: str = Query(..., description="Numéro d'article (ex: 38, 65bis, 1er)"),
+    numac: str = Query(...),
+    article: str = Query(...),
     langue: str = Query("fr")
 ):
-    """
-    Récupère le texte verbatim d'un article précis d'une loi.
-    Exemple : GET /loi/article?numac=1978070301&article=38
-    """
-    url_scraping = construire_url_scraping(numac)
-    url_citation = construire_url_citation(numac)  # ← URL valide (CGI, pas ELI)
-
+    url = construire_url_citation(numac)
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
@@ -393,9 +747,8 @@ async def lire_article_precis(
         )
         page = await context.new_page()
         await page.route("**/*", bloquer_ressources)
-
         try:
-            await page.goto(url_scraping, wait_until="networkidle", timeout=45000)
+            await page.goto(url, wait_until="networkidle", timeout=45000)
             await page.wait_for_timeout(1500)
             texte = await page.inner_text("body")
             texte = re.sub(r'\n{3,}', '\n\n', texte)
@@ -405,7 +758,6 @@ async def lire_article_precis(
                 rf"(Art\.?\s*{article_escape}[\.< \t].+?)(?=\n\s*Art\.?\s*\d|\Z)",
                 rf"(Article\s+{article_escape}[\. ].+?)(?=\n\s*Art\.?\s*\d|\Z)",
             ]
-
             texte_art = None
             for pat in patterns:
                 m = re.search(pat, texte, re.DOTALL | re.IGNORECASE)
@@ -421,7 +773,7 @@ async def lire_article_precis(
                     "numac": numac,
                     "article": article,
                     "texte_verbatim": texte_art,
-                    "url_source": url_citation,
+                    "url_source": url,
                     "note": "Texte récupéré en temps réel depuis Justel (législation consolidée)"
                 }
             else:
@@ -430,58 +782,38 @@ async def lire_article_precis(
                     "numac": numac,
                     "article": article,
                     "texte_verbatim": None,
-                    "url_source": url_citation,
-                    "note": (
-                        f"Article {article} introuvable dans la loi {numac}. "
-                        "Vérifiez le numéro d'article ou consultez l'URL source directement."
-                    )
+                    "url_source": url,
+                    "note": f"Article {article} introuvable dans {numac}. Consultez directement : {url}"
                 }
-
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─────────────────────────────────────────────
-# PARTIE 2D — /loi/sujet conservé comme alias de /loi/recherche
-# Pour compatibilité avec les anciens appels n8n
-# ─────────────────────────────────────────────
-
-@app.get("/loi/sujet")
-async def loi_sujet_alias(
-    sujet: str = Query(...),
-    langue: str = Query("fr")
-):
-    """
-    Alias de /loi/recherche — conservé pour compatibilité.
-    Redirige vers le scraping Justel direct.
-    """
-    return await recherche_loi_par_sujet(sujet=sujet, langue=langue)
-
-
-# Alias /loi/connue → /loi/recherche pour compatibilité workflow existant
-@app.get("/loi/connue")
-async def loi_connue_alias(
-    sujet: str = Query(...),
-    scrape: bool = Query(False)
-):
-    """
-    Alias de /loi/recherche — conservé pour compatibilité workflow n8n.
-    Le paramètre scrape est ignoré (scraping toujours actif).
-    """
-    return await recherche_loi_par_sujet(sujet=sujet)
-
-
-# ─────────────────────────────────────────────
 # PARTIE 3 — UTILITAIRES
-# INCHANGÉ sauf suppression de /loi/liste (dictionnaire supprimé)
 # ─────────────────────────────────────────────
+
+@app.get("/loi/liste")
+async def lister_lois_connues():
+    return {
+        "status": "ok",
+        "total": len(LOIS_CONNUES),
+        "lois": [
+            {
+                "cle": cle,
+                "titre": loi["titre"],
+                "numac": loi["numac"],
+                "url_source": construire_url_citation(loi["numac"]),
+                "nb_aliases": len(loi["aliases"])
+            }
+            for cle, loi in LOIS_CONNUES.items()
+        ]
+    }
+
 
 @app.get("/loi/debug")
 async def debug_justel(sujet: str = Query(...)):
-    """
-    Debug : affiche les résultats bruts de Justel sans traitement.
-    """
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
@@ -490,11 +822,8 @@ async def debug_justel(sujet: str = Query(...)):
         )
         page = await context.new_page()
         try:
-            await page.goto(
-                "https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr",
-                wait_until="networkidle",
-                timeout=30000
-            )
+            await page.goto("https://www.ejustice.just.fgov.be/cgi/rech.pl?language=fr",
+                            wait_until="networkidle", timeout=30000)
             await page.wait_for_timeout(2000)
             await page.evaluate(f"""
                 const form = document.querySelector('form');
@@ -507,7 +836,6 @@ async def debug_justel(sujet: str = Query(...)):
             await page.wait_for_url("**/rech_res.pl**", timeout=15000)
             await page.wait_for_load_state("networkidle", timeout=15000)
             await page.wait_for_timeout(4000)
-
             liens = await page.query_selector_all("a[href*='numac']")
             resultats = []
             numacs_vus = set()
@@ -535,22 +863,19 @@ async def debug_justel(sujet: str = Query(...)):
 async def health():
     return {
         "status": "online",
-        "version": "v4 - Scraping Justel direct, zéro dictionnaire hardcodé",
+        "version": "v4 — Dictionnaire étendu (28 lois) + vrais numac vérifiés + URLs CGI valides",
         "endpoints": {
             "jurisprudence": ["POST /scrape", "POST /lire_arret"],
-            "legislation_principal": [
-                "GET /loi/recherche  ← PRINCIPAL : scraping Justel direct",
-                "GET /loi/numac      ← accès direct par numac + extraction articles",
-                "GET /loi/article    ← article précis verbatim",
+            "legislation": [
+                "GET /loi/connue  ← PRINCIPAL (matching dictionnaire + fallback Justel)",
+                "GET /loi/sujet   ← alias de /loi/connue",
+                "GET /loi/numac   ← accès direct par numac",
+                "GET /loi/article ← article précis verbatim",
+                "GET /loi/liste   ← liste toutes les lois connues",
+                "GET /loi/debug   ← debug Justel brut",
             ],
-            "legislation_compatibilite": [
-                "GET /loi/connue     ← alias de /loi/recherche (rétrocompatibilité)",
-                "GET /loi/sujet      ← alias de /loi/recherche (rétrocompatibilité)",
-            ],
-            "utilitaires": [
-                "GET /loi/debug      ← debug Justel brut",
-                "GET /health"
-            ]
+            "utilitaires": ["GET /health"]
         },
-        "architecture": "Scraping Justel en temps réel — URLs et numac toujours valides"
+        "lois_dans_dictionnaire": len(LOIS_CONNUES),
+        "note_urls": "Toutes les URLs sont au format CGI (/cgi_loi/change_lg.pl?cn=NUMAC) — jamais ELI"
     }

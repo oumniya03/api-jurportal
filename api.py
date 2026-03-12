@@ -182,15 +182,23 @@ BASE_URL_JUSTEL = "https://www.ejustice.just.fgov.be"
 def construire_url_justel(numac: str) -> str:
     """
     Construit l'URL directe vers le texte consolidé d'une loi via son numac.
-    Format ELI : /eli/loi/YYYY/MM/DD/NUMAC/justel
+    URL ELI (pour affichage/référence) : /eli/loi/YYYY/MM/DD/NUMAC/justel
+    URL CGI (pour scraping Playwright) : /cgi_loi/change_lg.pl?cn=NUMAC
     """
     if len(numac) >= 8:
         annee = numac[:4]
         mois = numac[4:6]
         jour = numac[6:8]
         return f"{BASE_URL_JUSTEL}/eli/loi/{annee}/{mois}/{jour}/{numac}/justel"
-    # Fallback sur l'ancienne URL CGI
-    return f"{BASE_URL_JUSTEL}/cgi/loi_a1.pl?NUMAC={numac}&language=fr"
+    return f"{BASE_URL_JUSTEL}/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
+
+
+def construire_url_scraping(numac: str) -> str:
+    """
+    URL optimisée pour le scraping Playwright — retourne le texte consolidé complet.
+    Format cgi_loi éprouvé, retourne HTML statique avec tous les articles.
+    """
+    return f"{BASE_URL_JUSTEL}/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
 
 
 async def extraire_articles_depuis_texte(texte: str, mots_cles: list[str]) -> list[dict]:
@@ -222,9 +230,13 @@ async def extraire_articles_depuis_texte(texte: str, mots_cles: list[str]) -> li
 async def scraper_loi_par_numac(numac: str, mots_cles: list[str] = None) -> dict:
     """
     Scrape le texte d'une loi depuis Justel via son numac.
+    Utilise cgi_loi/change_lg.pl qui retourne le texte consolidé complet.
     Retourne le texte brut + les articles pertinents si mots_cles fournis.
     """
-    url = construire_url_justel(numac)
+    # URL de scraping éprouvée : retourne HTML avec tous les articles numérotés
+    url_scraping = f"{BASE_URL_JUSTEL}/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
+    # URL ELI pour citation dans les réponses
+    url_reference = construire_url_justel(numac)
     mots_cles = mots_cles or []
 
     async with async_playwright() as p:
@@ -237,16 +249,13 @@ async def scraper_loi_par_numac(numac: str, mots_cles: list[str] = None) -> dict
         await page.route("**/*", bloquer_ressources)
 
         try:
-            await page.goto(url, wait_until="networkidle", timeout=45000)
+            await page.goto(url_scraping, wait_until="networkidle", timeout=45000)
             await page.wait_for_timeout(1500)
-
-            # Vérifier si on a bien une page de loi (pas une homepage)
-            titre_page = await page.title()
             texte = await page.inner_text("body")
 
             if len(texte) < 500 or "formulaire" in texte.lower()[:200]:
-                # Fallback sur URL CGI alternative
-                url_fallback = f"{BASE_URL_JUSTEL}/cgi/loi_a1.pl?NUMAC={numac}&language=fr"
+                # Fallback : loi_a1 avec paramètres complets
+                url_fallback = f"{BASE_URL_JUSTEL}/cgi_loi/loi_a1.pl?language=fr&tri=dd+AS+RANK&cn={numac}&caller=image_a1&fromtab=loi&la=F"
                 await page.goto(url_fallback, wait_until="networkidle", timeout=30000)
                 await page.wait_for_timeout(1500)
                 texte = await page.inner_text("body")
@@ -262,7 +271,8 @@ async def scraper_loi_par_numac(numac: str, mots_cles: list[str] = None) -> dict
             return {
                 "status": "ok",
                 "numac": numac,
-                "url_source": url,
+                "url_source": url_reference,  # URL ELI pour citation
+                "url_scraping": url_scraping,  # URL réellement utilisée pour debug
                 "texte_longueur": len(texte),
                 "articles": articles
             }
@@ -492,7 +502,10 @@ async def lire_article_precis(
     Exemple : GET /loi/article?numac=1978070301&article=38
     → Retourne l'article 38 de la Loi du 3 juillet 1978.
     """
-    url = construire_url_justel(numac)
+    # URL cgi_loi pour le scraping (texte consolidé complet)
+    url_scraping = f"{BASE_URL_JUSTEL}/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
+    # URL ELI pour la citation dans la réponse
+    url_citation = construire_url_justel(numac)
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -504,22 +517,28 @@ async def lire_article_precis(
         await page.route("**/*", bloquer_ressources)
 
         try:
-            await page.goto(url, wait_until="networkidle", timeout=45000)
+            await page.goto(url_scraping, wait_until="networkidle", timeout=45000)
             await page.wait_for_timeout(1500)
             texte = await page.inner_text("body")
             texte = re.sub(r'\n{3,}', '\n\n', texte)
 
-            # Patterns de recherche d'article (robuste aux variantes belges)
+            # Patterns robustes au format Justel belge
+            # Justel écrit : "Art. 38." ou "Art.38." ou "Article 38" ou "Art. 38bis."
             article_escape = re.escape(article)
             patterns = [
-                rf"\bArt(?:icle)?\.?\s*{article_escape}[°\.\-\s](.+?)(?=\bArt(?:icle)?\.?\s*\d|\Z)",
-                rf"\bArt(?:icle)?\.?\s*{article_escape}[°\.\-\s](.+?)(?=\n\n\n|\Z)",
+                # Format standard Justel : Art. 38.<espace>texte jusqu'au prochain Art.
+                rf"\bArt\.?\s*{article_escape}[\.\s][^\n](.+?)(?=\bArt\.?\s*\d|\Z)",
+                # Format avec "Article" en toutes lettres
+                rf"\bArticle\s+{article_escape}[\.\s](.+?)(?=\bArt(?:icle)?\.?\s*\d|\Z)",
+                # Format compact sans espace
+                rf"\bArt\.{article_escape}\.(.+?)(?=\bArt\.\d|\Z)",
             ]
 
             texte_art = None
             for pat in patterns:
                 m = re.search(pat, texte, re.DOTALL | re.IGNORECASE)
                 if m:
+                    # Prendre tout le match (groupe 0) pour inclure "Art. 38."
                     texte_art = m.group(0)[:2000].strip()
                     break
 
@@ -531,8 +550,8 @@ async def lire_article_precis(
                     "numac": numac,
                     "article": article,
                     "texte_verbatim": texte_art,
-                    "url_source": url,
-                    "note": "Texte récupéré en temps réel depuis Justel"
+                    "url_source": url_citation,
+                    "note": "Texte récupéré en temps réel depuis Justel (législation consolidée)"
                 }
             else:
                 return {
@@ -540,7 +559,7 @@ async def lire_article_precis(
                     "numac": numac,
                     "article": article,
                     "texte_verbatim": None,
-                    "url_source": url,
+                    "url_source": url_citation,
                     "note": (
                         f"Article {article} introuvable dans la loi {numac}. "
                         "Vérifiez le numéro d'article ou consultez l'URL source directement."

@@ -374,20 +374,14 @@ def detecter_loi_par_sujet(sujet: str) -> list[dict]:
 
 def construire_url_citation(numac: str) -> str:
     """
-    URL CGI valide pour tout numac.
-    - Numac standard (ex: 1978070303) → format change_lg.pl
-    - Numac avec lettre (ex: 2019A40586) → format article.pl
+    URL CGI valide pour tout numac — format cgi/article.pl universel.
+    Fonctionne pour tous les numac (avec ou sans lettre).
     """
-    if re.search(r'[A-Za-z]', numac):
-        # Numac avec lettre → URL article.pl
-        return (
-            f"https://www.ejustice.just.fgov.be/cgi_loi/article.pl"
-            f"?language=fr&lg_txt=F&caller=list"
-            f"&numac_search={numac}&trier=promulgation"
-        )
-    else:
-        # Numac standard → URL change_lg.pl
-        return f"https://www.ejustice.just.fgov.be/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
+    return (
+        f"https://www.ejustice.just.fgov.be/cgi/article.pl"
+        f"?language=fr&lg_txt=F&caller=list"
+        f"&numac_search={numac}&trier=promulgation"
+    )
 
 
 # ─────────────────────────────────────────────
@@ -442,10 +436,11 @@ async def scraper_loi_par_numac(numac: str, mots_cles: list[str] = None) -> dict
         await page.route("**/*", bloquer_ressources)
         try:
             await page.goto(url, wait_until="networkidle", timeout=45000)
-            await page.wait_for_timeout(1500)
+            await page.wait_for_timeout(2000)
             texte = await page.inner_text("body")
             if len(texte) < 500 or "formulaire" in texte.lower()[:200]:
-                url_fallback = f"{BASE_URL_JUSTEL}/cgi_loi/loi_a1.pl?language=fr&tri=dd+AS+RANK&cn={numac}&caller=image_a1&fromtab=loi&la=F"
+                # Fallback : essaie change_lg.pl si article.pl échoue
+                url_fallback = f"{BASE_URL_JUSTEL}/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
                 await page.goto(url_fallback, wait_until="networkidle", timeout=30000)
                 await page.wait_for_timeout(1500)
                 texte = await page.inner_text("body")

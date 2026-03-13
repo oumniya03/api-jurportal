@@ -135,7 +135,7 @@ LOIS_CONNUES = {
     # ── DROIT DES SOCIÉTÉS ───────────────────────────────────────────────
 
     "code_societes": {
-        "numac": "2019040586",   # ✅ CSA/WVV
+        "numac": "2019A40586",   # ✅ vérifié Justel 23/03/2019 — CSA texte consolidé
         "titre": "Code des sociétés et des associations du 23 mars 2019 (CSA/WVV)",
         "aliases": [
             "société", "csa", "wvv", "sprl", "bv", "srl", "sa", "nv",
@@ -373,8 +373,21 @@ def detecter_loi_par_sujet(sujet: str) -> list[dict]:
 
 
 def construire_url_citation(numac: str) -> str:
-    """URL CGI valide pour tout numac — utilisée pour citation ET scraping."""
-    return f"https://www.ejustice.just.fgov.be/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
+    """
+    URL CGI valide pour tout numac.
+    - Numac standard (ex: 1978070303) → format change_lg.pl
+    - Numac avec lettre (ex: 2019A40586) → format article.pl
+    """
+    if re.search(r'[A-Za-z]', numac):
+        # Numac avec lettre → URL article.pl
+        return (
+            f"https://www.ejustice.just.fgov.be/cgi_loi/article.pl"
+            f"?language=fr&lg_txt=F&caller=list"
+            f"&numac_search={numac}&trier=promulgation"
+        )
+    else:
+        # Numac standard → URL change_lg.pl
+        return f"https://www.ejustice.just.fgov.be/cgi_loi/change_lg.pl?language=fr&la=F&table_name=loi&cn={numac}"
 
 
 # ─────────────────────────────────────────────

@@ -78,7 +78,7 @@ LOIS_CONNUES = {
     },
 
     "conges_annuels": {
-        "numac": "2001012823",   # ⚠️ à vérifier si page vide
+        "numac": "1971062805",   # ✅ vérifié Justel 28/06/1971 — vacances annuelles
         "titre": "Lois coordonnées du 28 juin 1971 relatives aux vacances annuelles des travailleurs salariés",
         "aliases": [
             "vacances annuelles", "congés payés", "pécule vacances",
@@ -88,7 +88,7 @@ LOIS_CONNUES = {
     },
 
     "travail_temps_partiel": {
-        "numac": "1987012264",   # ⚠️ à vérifier si page vide
+        "numac": "1987012264",   # ✅ vérifié Justel 24/07/1987
         "titre": "Loi du 24 juillet 1987 sur le travail temporaire, le travail intérimaire et la mise de travailleurs à la disposition d'utilisateurs",
         "aliases": [
             "temps partiel", "travail partiel", "mi-temps",
@@ -151,7 +151,7 @@ LOIS_CONNUES = {
     # ── DROIT ÉCONOMIQUE ─────────────────────────────────────────────────
 
     "code_droit_economique": {
-        "numac": "2013009743",   # ⚠️ à vérifier si page vide
+        "numac": "2013A11134",   # ✅ vérifié Justel 28/02/2013 — CDE texte consolidé
         "titre": "Code de droit économique (CDE)",
         "aliases": [
             "pratiques commerce", "concurrence déloyale", "publicité trompeuse",
@@ -163,7 +163,7 @@ LOIS_CONNUES = {
     },
 
     "propriete_intellectuelle": {
-        "numac": "2013009743",   # ⚠️ à vérifier si page vide
+        "numac": "2013A11134",   # ✅ CDE Livre XI — même code
         "titre": "Code de droit économique — Livre XI : Propriété intellectuelle",
         "aliases": [
             "propriété intellectuelle", "droit auteur", "droits auteur",
@@ -174,7 +174,8 @@ LOIS_CONNUES = {
     },
 
     "droit_auteur": {
-        "numac": "1994022068",   # ⚠️ à vérifier si page vide
+        "numac": "1994009586",   # ✅ vérifié Justel 30/06/1994 — texte original PDF (avant 1997)
+        # ⚠️ Pas de version HTML consolidée — largement intégré dans CDE Livre XI (2013A11134)
         "titre": "Loi du 30 juin 1994 relative au droit d'auteur et aux droits voisins",
         "aliases": [
             "droits auteur salarié", "œuvre créée travail", "auteur employé",
@@ -197,16 +198,7 @@ LOIS_CONNUES = {
         ]
     },
 
-    "procedure_penale": {
-        "numac": "1878032650",   # ⚠️ à vérifier si page vide
-        "titre": "Code d'instruction criminelle",
-        "aliases": [
-            "instruction criminelle", "enquête pénale", "plainte pénale",
-            "arrestation", "détention préventive", "mise en examen",
-            "juge instruction", "parquet", "procureur", "chambre conseil",
-            "citation directe", "constitution partie civile"
-        ]
-    },
+
 
     # ── INSOLVABILITÉ ────────────────────────────────────────────────────
 
@@ -225,7 +217,7 @@ LOIS_CONNUES = {
     # ── DROIT CIVIL ──────────────────────────────────────────────────────
 
     "code_civil": {
-        "numac": "2021040938",   # ⚠️ à vérifier si page vide
+        "numac": "2021040938",   # ✅ vérifié Justel 04/02/2021 — Nouveau Code civil
         "titre": "Nouveau Code civil belge (en vigueur progressivement depuis 2022)",
         "aliases": [
             "contrat civil", "responsabilité civile", "dommages intérêts",
@@ -251,7 +243,9 @@ LOIS_CONNUES = {
     # ── DROIT FISCAL ─────────────────────────────────────────────────────
 
     "cir92": {
-        "numac": "1992003206",   # ⚠️ à vérifier si page vide
+        "numac": "1992003456",   # ✅ AR 10/04/1992 — texte original PDF (avant 1997)
+        # ⚠️ Pas de version HTML consolidée sur Justel — texte complet sur Fisconetplus
+        # Source alternative : https://finances.belgium.be/fr/expertises-et-publications/legislation-et-circulaires/impots-sur-les-revenus/cir-92
         "titre": "Code des impôts sur les revenus 1992 (CIR92)",
         "aliases": [
             "impôt revenus", "ipp", "isoc", "précompte professionnel",
@@ -262,7 +256,7 @@ LOIS_CONNUES = {
     },
 
     "tva": {
-        "numac": "1969071701",   # ⚠️ à vérifier si page vide
+        "numac": "1969070305",   # ✅ vérifié Justel 03/07/1969 — Loi créant le Code TVA
         "titre": "Code de la taxe sur la valeur ajoutée (TVA)",
         "aliases": [
             "tva", "taxe valeur ajoutée", "assujetti tva",
@@ -274,7 +268,7 @@ LOIS_CONNUES = {
     # ── DROIT SOCIAL ─────────────────────────────────────────────────────
 
     "securite_sociale": {
-        "numac": "1969062710",   # ⚠️ à vérifier si page vide
+        "numac": "1969062710",   # ✅ vérifié Justel 27/06/1969
         "titre": "Loi du 27 juin 1969 révisant l'arrêté-loi du 28 décembre 1944 concernant la sécurité sociale des travailleurs",
         "aliases": [
             "sécurité sociale", "cotisations sociales", "onss",
@@ -284,7 +278,7 @@ LOIS_CONNUES = {
     },
 
     "assurance_chomage": {
-        "numac": "1944122850",   # ⚠️ à vérifier si page vide
+        "numac": "1944122850",   # ✅ vérifié Justel 28/12/1944
         "titre": "Arrêté-loi du 28 décembre 1944 concernant la sécurité sociale des travailleurs",
         "aliases": [
             "chômage", "allocations chômage", "onem", "chômeur",
@@ -308,7 +302,7 @@ LOIS_CONNUES = {
     # ── DROIT LOCATIF ────────────────────────────────────────────────────
 
     "bail_habitation": {
-        "numac": "2017205781",   # ⚠️ à vérifier si page vide
+        "numac": "2018201408",   # ✅ vérifié Justel 15/03/2018 — Décret wallon bail habitation
         "titre": "Décret wallon du 15 mars 2018 relatif aux baux d'habitation",
         "aliases": [
             "bail habitation", "loyer", "locataire", "bailleur",
@@ -320,7 +314,7 @@ LOIS_CONNUES = {
     },
 
     "bail_commercial": {
-        "numac": "1951121401",   # ⚠️ à vérifier si page vide
+        "numac": "1951043003",   # ✅ vérifié Justel 30/04/1951 — baux commerciaux
         "titre": "Loi du 30 avril 1951 sur les baux commerciaux",
         "aliases": [
             "bail commercial", "bail fonds commerce", "renouvellement bail commercial",

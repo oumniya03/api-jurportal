@@ -18,7 +18,7 @@ LOIS_CONNUES = {
     # ── DROIT DU TRAVAIL ─────────────────────────────────────────────────
 
     "contrat_travail": {
-        "numac": "1978070303",   # ✅ vérifié Justel — LCT 3 juillet 1978
+        "numac": "1978070303",   # ✅ vérifié Justel 03/07/1978 — LCT
         "titre": "Loi du 3 juillet 1978 relative aux contrats de travail",
         "aliases": [
             "licenciement", "préavis", "contrat travail", "rupture contrat",
@@ -33,7 +33,7 @@ LOIS_CONNUES = {
     },
 
     "bien_etre_travail": {
-        "numac": "1996012650",   # ✅ vérifié — Loi 4 août 1996 bien-être travailleurs
+        "numac": "1996012650",   # ✅ vérifié Justel 04/08/1996 — bien-être travailleurs
         "titre": "Loi du 4 août 1996 relative au bien-être des travailleurs lors de l'exécution de leur travail",
         "aliases": [
             "harcèlement", "harcèlement moral", "harcèlement sexuel",
@@ -45,7 +45,7 @@ LOIS_CONNUES = {
     },
 
     "duree_travail": {
-        "numac": "1971031602",   # ✅ vérifié — Loi 16 mars 1971 sur le travail
+        "numac": "1971031602",   # ✅ vérifié Justel 16/03/1971 — Loi sur le travail
         "titre": "Loi du 16 mars 1971 sur le travail",
         "aliases": [
             "durée travail", "heures travail", "temps travail",
@@ -57,7 +57,7 @@ LOIS_CONNUES = {
     },
 
     "statut_unique": {
-        "numac": "2013012289",   # ✅ vérifié Justel — Loi 26 décembre 2013
+        "numac": "2013012289",   # ✅ vérifié Justel 26/12/2013 — statut unique
         "titre": "Loi du 26 décembre 2013 concernant l'introduction d'un statut unique entre ouvriers et employés",
         "aliases": [
             "statut unique", "préavis harmonisé", "préavis ouvrier",
@@ -68,7 +68,7 @@ LOIS_CONNUES = {
     },
 
     "protection_maternite": {
-        "numac": "2002012347",   # Loi 16 mars 1971 — protection maternité AR consolidé
+        "numac": "1971031602",   # ✅ Loi 16 mars 1971 — chapitre maternité
         "titre": "Protection de la maternité — Loi du 16 mars 1971 (consolidée)",
         "aliases": [
             "maternité", "congé maternité", "grossesse licenciement",
@@ -79,7 +79,7 @@ LOIS_CONNUES = {
     },
 
     "conges_annuels": {
-        "numac": "2001012823",   # Lois coordonnées vacances annuelles
+        "numac": "2001012823",   # ⚠️ à vérifier Vague 2
         "titre": "Lois coordonnées du 28 juin 1971 relatives aux vacances annuelles des travailleurs salariés",
         "aliases": [
             "vacances annuelles", "congés payés", "pécule vacances",
@@ -89,7 +89,7 @@ LOIS_CONNUES = {
     },
 
     "travail_temps_partiel": {
-        "numac": "1987012264",   # Loi 24 juillet 1987 travail intérimaire et temps partiel
+        "numac": "1987012264",   # ⚠️ à vérifier Vague 3
         "titre": "Loi du 24 juillet 1987 sur le travail temporaire, le travail intérimaire et la mise de travailleurs à la disposition d'utilisateurs",
         "aliases": [
             "temps partiel", "travail partiel", "mi-temps",
@@ -99,7 +99,7 @@ LOIS_CONNUES = {
     },
 
     "protection_licenciement": {
-        "numac": "2014012010",   # CCT n°109 — licenciement manifestement déraisonnable
+        "numac": "2014012010",   # ✅ CCT n°109
         "titre": "CCT n°109 du 12 février 2014 concernant la motivation du licenciement",
         "aliases": [
             "licenciement déraisonnable", "motivation licenciement",
@@ -111,7 +111,7 @@ LOIS_CONNUES = {
     # ── ANTI-DISCRIMINATION ──────────────────────────────────────────────
 
     "anti_discrimination": {
-        "numac": "2007002099",   # ✅ Loi 10 mai 2007 — discrimination générale
+        "numac": "2007002099",   # ✅ vérifié Justel 10/05/2007 — discrimination générale
         "titre": "Loi du 10 mai 2007 tendant à lutter contre certaines formes de discrimination",
         "aliases": [
             "discrimination", "anti-discrimination", "égalité traitement",
@@ -123,7 +123,7 @@ LOIS_CONNUES = {
     },
 
     "egalite_hommes_femmes": {
-        "numac": "2007002098",   # ✅ Loi 10 mai 2007 — égalité H/F
+        "numac": "2009000344",   # ✅ vérifié Justel 10/05/2007 — version coordonnée égalité H/F
         "titre": "Loi du 10 mai 2007 tendant à lutter contre la discrimination entre hommes et femmes",
         "aliases": [
             "égalité hommes femmes", "discrimination genre",
@@ -135,7 +135,7 @@ LOIS_CONNUES = {
     # ── DROIT DES SOCIÉTÉS ───────────────────────────────────────────────
 
     "code_societes": {
-        "numac": "2019040723",   # ✅ CSA/WVV — Code des sociétés et associations
+        "numac": "2019040586",   # ✅ CSA/WVV
         "titre": "Code des sociétés et des associations du 23 mars 2019 (CSA/WVV)",
         "aliases": [
             "société", "csa", "wvv", "sprl", "bv", "srl", "sa", "nv",
@@ -152,7 +152,7 @@ LOIS_CONNUES = {
     # ── DROIT ÉCONOMIQUE ─────────────────────────────────────────────────
 
     "code_droit_economique": {
-        "numac": "2013009743",   # CDE — Code de droit économique
+        "numac": "2013009743",   # ⚠️ à vérifier Vague 3
         "titre": "Code de droit économique (CDE)",
         "aliases": [
             "pratiques commerce", "concurrence déloyale", "publicité trompeuse",
@@ -164,7 +164,7 @@ LOIS_CONNUES = {
     },
 
     "propriete_intellectuelle": {
-        "numac": "2013009743",   # CDE Livre XI — propriété intellectuelle
+        "numac": "2013009743",   # ⚠️ à vérifier Vague 3
         "titre": "Code de droit économique — Livre XI : Propriété intellectuelle",
         "aliases": [
             "propriété intellectuelle", "droit auteur", "droits auteur",
@@ -175,7 +175,7 @@ LOIS_CONNUES = {
     },
 
     "droit_auteur": {
-        "numac": "1994022068",   # Loi 30 juin 1994 droits d'auteur
+        "numac": "1994022068",   # ⚠️ à vérifier Vague 3
         "titre": "Loi du 30 juin 1994 relative au droit d'auteur et aux droits voisins",
         "aliases": [
             "droits auteur salarié", "œuvre créée travail", "auteur employé",
@@ -199,7 +199,7 @@ LOIS_CONNUES = {
     },
 
     "procedure_penale": {
-        "numac": "1878032650",   # Code instruction criminelle
+        "numac": "1878032650",   # ⚠️ à vérifier Vague 2
         "titre": "Code d'instruction criminelle",
         "aliases": [
             "instruction criminelle", "enquête pénale", "plainte pénale",
@@ -212,7 +212,7 @@ LOIS_CONNUES = {
     # ── INSOLVABILITÉ ────────────────────────────────────────────────────
 
     "insolvabilite": {
-        "numac": "2017030524",   # ✅ Code insolvabilité — Livre XX CDE
+        "numac": "2017012998",   # ✅ vérifié Justel 11/08/2017 — Code insolvabilité
         "titre": "Code de droit de l'insolvabilité (Livre XX CDE) — Loi du 11 août 2017",
         "aliases": [
             "faillite", "insolvabilité", "réorganisation judiciaire",
@@ -226,7 +226,7 @@ LOIS_CONNUES = {
     # ── DROIT CIVIL ──────────────────────────────────────────────────────
 
     "code_civil": {
-        "numac": "2021040938",   # Nouveau Code civil — Livre 5 obligations
+        "numac": "2021040938",   # ⚠️ à vérifier Vague 2
         "titre": "Nouveau Code civil belge (en vigueur progressivement depuis 2022)",
         "aliases": [
             "contrat civil", "responsabilité civile", "dommages intérêts",
@@ -239,7 +239,7 @@ LOIS_CONNUES = {
     },
 
     "code_civil_ancien": {
-        "numac": "1804032138",   # Ancien Code civil (toujours en vigueur partiellement)
+        "numac": "1804032138",   # ✅ Ancien Code civil
         "titre": "Code civil — dispositions encore en vigueur",
         "aliases": [
             "propriété immobilière", "servitude", "usufruit", "hypothèque",
@@ -251,8 +251,8 @@ LOIS_CONNUES = {
 
     # ── DROIT FISCAL ─────────────────────────────────────────────────────
 
-    "code_impots_revenus": {
-        "numac": "1992003206",   # CIR92 — Code des impôts sur les revenus
+    "cir92": {
+        "numac": "1992003206",   # ⚠️ à vérifier Vague 2
         "titre": "Code des impôts sur les revenus 1992 (CIR92)",
         "aliases": [
             "impôt revenus", "ipp", "isoc", "précompte professionnel",
@@ -263,8 +263,8 @@ LOIS_CONNUES = {
     },
 
     "tva": {
-        "numac": "1969071701",   # Code TVA
-        "titre": "Code de la taxe sur la valeur ajoutée (TVA) — AR n°1 du 29 décembre 1992",
+        "numac": "1969071701",   # ⚠️ à vérifier Vague 3
+        "titre": "Code de la taxe sur la valeur ajoutée (TVA)",
         "aliases": [
             "tva", "taxe valeur ajoutée", "assujetti tva",
             "déclaration tva", "facture tva", "taux tva",
@@ -275,7 +275,7 @@ LOIS_CONNUES = {
     # ── DROIT SOCIAL ─────────────────────────────────────────────────────
 
     "securite_sociale": {
-        "numac": "1969062710",   # Loi 27 juin 1969 sécurité sociale travailleurs salariés
+        "numac": "1969062710",   # ⚠️ à vérifier Vague 3
         "titre": "Loi du 27 juin 1969 révisant l'arrêté-loi du 28 décembre 1944 concernant la sécurité sociale des travailleurs",
         "aliases": [
             "sécurité sociale", "cotisations sociales", "onss",
@@ -285,7 +285,7 @@ LOIS_CONNUES = {
     },
 
     "assurance_chomage": {
-        "numac": "1944122850",   # AR-loi 28 décembre 1944 — chômage
+        "numac": "1944122850",   # ⚠️ à vérifier Vague 3
         "titre": "Arrêté-loi du 28 décembre 1944 concernant la sécurité sociale des travailleurs",
         "aliases": [
             "chômage", "allocations chômage", "onem", "chômeur",
@@ -296,7 +296,7 @@ LOIS_CONNUES = {
     },
 
     "accidents_travail": {
-        "numac": "1971100402",   # Loi 10 avril 1971 accidents du travail
+        "numac": "1971100402",   # ✅ Loi 10 avril 1971
         "titre": "Loi du 10 avril 1971 sur les accidents du travail",
         "aliases": [
             "accident travail", "accident de travail", "maladie professionnelle",
@@ -309,18 +309,19 @@ LOIS_CONNUES = {
     # ── DROIT LOCATIF ────────────────────────────────────────────────────
 
     "bail_habitation": {
-        "numac": "2017205781",   # Décret wallon baux d'habitation (Wallonie)
+        "numac": "2017205781",   # ⚠️ à vérifier Vague 2
         "titre": "Décret wallon du 15 mars 2018 relatif aux baux d'habitation",
         "aliases": [
             "bail habitation", "loyer", "locataire", "bailleur",
             "résiliation bail", "préavis bail", "bail durée déterminée",
             "bail résidence principale", "garantie locative",
-            "état des lieux", "loyer indexation", "bail étudiant"
+            "état des lieux", "loyer indexation", "bail étudiant",
+            "bail wallon"
         ]
     },
 
     "bail_commercial": {
-        "numac": "1951121401",   # Loi sur les baux commerciaux
+        "numac": "1951121401",   # ⚠️ à vérifier Vague 2
         "titre": "Loi du 30 avril 1951 sur les baux commerciaux",
         "aliases": [
             "bail commercial", "bail fonds commerce", "renouvellement bail commercial",
@@ -332,7 +333,7 @@ LOIS_CONNUES = {
     # ── RGPD / DONNÉES PERSONNELLES ──────────────────────────────────────
 
     "protection_donnees": {
-        "numac": "2018040581",   # Loi 30 juillet 2018 — RGPD belge
+        "numac": "2018013455",   # ✅ vérifié Justel 30/07/2018 — RGPD belge
         "titre": "Loi du 30 juillet 2018 relative à la protection des personnes physiques à l'égard des traitements de données à caractère personnel",
         "aliases": [
             "rgpd", "gdpr", "données personnelles", "vie privée",
@@ -454,7 +455,7 @@ async def scraper_loi_par_numac(numac: str, mots_cles: list[str] = None) -> dict
 
 
 # ─────────────────────────────────────────────
-# PARTIE 1 — JURISPRUDENCE (JUPORTAL) — INCHANGÉ
+# PARTIE 1 — JURISPRUDENCE (JUPORTAL)
 # ─────────────────────────────────────────────
 
 class QueryModel(BaseModel):
@@ -545,7 +546,6 @@ def lire_arret_complet(query: UrlModel):
 
 # ─────────────────────────────────────────────
 # PARTIE 2A — LOI PAR SUJET (DICTIONNAIRE + FALLBACK JUSTEL)
-# Endpoint appelé par n8n via /loi/connue ou /loi/sujet
 # ─────────────────────────────────────────────
 
 @app.get("/loi/connue")
@@ -553,15 +553,9 @@ async def loi_connue_par_sujet(
     sujet: str = Query(..., description="Sujet juridique en langage naturel"),
     scrape: bool = Query(False, description="Si True, scrape aussi les articles pertinents")
 ):
-    """
-    Identifie la loi belge applicable via matching sémantique (dictionnaire).
-    Toutes les URLs retournées sont des URLs CGI valides vérifiées sur Justel.
-    Fallback vers scraping Justel si sujet hors dictionnaire.
-    """
     candidats = detecter_loi_par_sujet(sujet)
 
     if not candidats:
-        # Fallback scraping Justel avec timeout court
         return await recherche_justel_fallback(sujet)
 
     meilleur = candidats[0]
@@ -605,7 +599,6 @@ async def loi_connue_par_sujet(
 
 
 async def recherche_justel_fallback(sujet: str) -> dict:
-    """Fallback scraping Justel avec timeout court (25s max)."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
@@ -697,14 +690,13 @@ async def recherche_justel_fallback(sujet: str) -> dict:
             }
 
 
-# Alias /loi/sujet → /loi/connue pour compatibilité
 @app.get("/loi/sujet")
 async def loi_sujet_alias(sujet: str = Query(...), langue: str = Query("fr")):
     return await loi_connue_par_sujet(sujet=sujet)
 
 
 # ─────────────────────────────────────────────
-# PARTIE 2B — ACCÈS DIRECT PAR NUMAC — INCHANGÉ
+# PARTIE 2B — ACCÈS DIRECT PAR NUMAC
 # ─────────────────────────────────────────────
 
 @app.get("/loi/numac")
@@ -729,7 +721,7 @@ async def lire_loi_par_numac(
 
 
 # ─────────────────────────────────────────────
-# PARTIE 2C — ARTICLE PRÉCIS PAR NUMAC — INCHANGÉ
+# PARTIE 2C — ARTICLE PRÉCIS PAR NUMAC
 # ─────────────────────────────────────────────
 
 @app.get("/loi/article")
@@ -863,16 +855,33 @@ async def debug_justel(sujet: str = Query(...)):
 async def health():
     return {
         "status": "online",
-        "version": "v4 — Dictionnaire étendu (28 lois) + vrais numac vérifiés + URLs CGI valides",
+        "version": "v4.1 — Vague 1 corrigée (numac vérifiés Justel)",
+        "corrections_vague1": {
+            "egalite_hommes_femmes": "2009000344 ✅",
+            "protection_donnees": "2018013455 ✅",
+            "insolvabilite": "2017012998 ✅",
+            "contrat_travail": "1978070303 ✅ confirmé",
+            "bien_etre_travail": "1996012650 ✅ confirmé",
+            "anti_discrimination": "2007002099 ✅ confirmé",
+            "statut_unique": "2013012289 ✅ confirmé",
+        },
+        "a_verifier_vague2": [
+            "code_civil", "procedure_penale", "cir92",
+            "bail_habitation", "bail_commercial", "conges_annuels"
+        ],
+        "a_verifier_vague3": [
+            "code_droit_economique", "droit_auteur", "travail_temps_partiel",
+            "tva", "securite_sociale", "assurance_chomage"
+        ],
         "endpoints": {
             "jurisprudence": ["POST /scrape", "POST /lire_arret"],
             "legislation": [
-                "GET /loi/connue  ← PRINCIPAL (matching dictionnaire + fallback Justel)",
-                "GET /loi/sujet   ← alias de /loi/connue",
-                "GET /loi/numac   ← accès direct par numac",
-                "GET /loi/article ← article précis verbatim",
-                "GET /loi/liste   ← liste toutes les lois connues",
-                "GET /loi/debug   ← debug Justel brut",
+                "GET /loi/connue",
+                "GET /loi/sujet",
+                "GET /loi/numac",
+                "GET /loi/article",
+                "GET /loi/liste",
+                "GET /loi/debug",
             ],
             "utilitaires": ["GET /health"]
         },
